@@ -1,0 +1,2800 @@
+<!DOCTYPE html>
+<!--
+  Keyboard Commander — V8 (web)
+  Single self-contained HTML file. boom.wav is base64-inlined.
+
+  Squarespace deployment:
+    1) Host this file (e.g. GitHub Pages: https://theglimmeroa.github.io/Keyboard-Commander-Web/)
+    2) In Squarespace, add a Code Block to the page:
+         <iframe src="https://theglimmeroa.github.io/Keyboard-Commander-Web/"
+                 width="100%" height="850" style="border:0; max-width:1280px;"
+                 allow="autoplay" loading="lazy"></iframe>
+    3) The "Click to play" overlay grabs focus inside the iframe on first click.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0f0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Keyboard Commander</title>
+<style>
+  *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden; background: #0f0f14;
+    font-family: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, Menlo, monospace;
+    color: #dcdcdc; -webkit-font-smoothing: antialiased;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  #stage {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #game {
+    background: #0f0f14;
+    image-rendering: auto;
+    box-shadow: 0 0 60px rgba(100,200,255,0.06);
+  }
+  /* V8 §3.1: toggles pulled in from corners, unified large monospace typography */
+  #toggle-bar {
+    position: absolute;
+    top: 18px;
+    left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    padding: 0 6%;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .toggle {
+    pointer-events: auto;
+    background: transparent;
+    border: none;
+    color: #96a0aa;
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 4px 8px;
+    cursor: pointer;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .seg { display: inline-block; padding: 0 4px; transition: color 0.12s; }
+  .seg.on { color: #dcdcdc; }
+  .seg:hover { color: #64c8ff; }
+  #mem-label { transition: color 0.12s; cursor: pointer; }
+  #mem-label:hover { color: #64c8ff; }
+  /* V8 §3.4: stats popup */
+  #stats-popup {
+    position: fixed; inset: 0; z-index: 20;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(15,15,20,0.78);
+  }
+  #stats-popup.show { display: flex; }
+  #stats-card {
+    background: #161821;
+    border: 1px solid #64c8ff;
+    border-radius: 8px;
+    padding: 36px 48px;
+    min-width: 420px;
+    font-family: inherit;
+  }
+  #stats-card h2 {
+    color: #64c8ff;
+    font-size: 24px;
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 24px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .stats-row {
+    display: flex; justify-content: space-between;
+    font-size: 18px;
+    padding: 8px 0;
+    border-bottom: 1px solid #2a2c36;
+  }
+  .stats-row:last-child { border-bottom: none; }
+  .stats-row span:first-child { color: #96a0aa; }
+  .stats-row span:last-child { color: #dcdcdc; font-weight: 500; }
+  #stats-close-hint {
+    text-align: center;
+    color: #6a7480;
+    font-size: 13px;
+    margin-top: 20px;
+  }
+  /* V8: click-to-focus banner for iframe deployment */
+  #focus-banner {
+    position: fixed; inset: 0; z-index: 30;
+    background: rgba(15,15,20,0.92);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    cursor: pointer;
+  }
+  #focus-banner.hidden { display: none; }
+  #focus-banner h1 {
+    color: #64c8ff; font-size: 36px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  #focus-banner p {
+    color: #96a0aa; font-size: 18px;
+  }
+  #mobile-rec {
+    position: fixed; inset: 0; z-index: 10;
+    background: rgba(15,15,20,0.96);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px; text-align: center;
+  }
+  #mobile-rec.show { display: flex; }
+  #mobile-rec h2 { color: #64c8ff; margin-bottom: 16px; font-weight: 500; font-size: 20px; }
+  #mobile-rec p { max-width: 480px; line-height: 1.5; margin-bottom: 24px; font-size: 15px; }
+  #mobile-rec button {
+    background: transparent; border: 1px solid #64c8ff; color: #64c8ff;
+    font-family: inherit; font-size: 16px;
+    padding: 10px 22px; border-radius: 8px; cursor: pointer;
+  }
+  #mobile-rec button:hover { background: rgba(100,200,255,0.1); }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" width="1280" height="800"></canvas>
+    <div id="toggle-bar">
+      <div class="toggle" id="speed-toggle" aria-label="Speed toggle">
+        <span class="seg on" id="seg-slow">Slow</span><span class="seg" id="seg-fast">Fast</span>
+      </div>
+      <div class="toggle" id="memory-toggle" aria-label="Memory and Stats">
+        <span id="mem-label">Memory</span>:&nbsp;<span class="seg on" id="mem-state">ON</span>
+      </div>
+    </div>
+  </div>
+  <div id="stats-popup" aria-hidden="true">
+    <div id="stats-card">
+      <h2>Stats</h2>
+      <div class="stats-row"><span>Live WPM</span><span id="stat-live-wpm">0</span></div>
+      <div class="stats-row"><span>Best WPM</span><span id="stat-best-wpm">0</span></div>
+      <div class="stats-row"><span>Total keystrokes</span><span id="stat-total-keys">0</span></div>
+      <div class="stats-row"><span>Sessions played</span><span id="stat-sessions">0</span></div>
+      <div class="stats-row"><span>Row unlocked</span><span id="stat-row">Home</span></div>
+      <div id="stats-close-hint">Click anywhere or press Esc to close</div>
+    </div>
+  </div>
+  <div id="focus-banner">
+    <h1>Keyboard Commander</h1>
+    <p>Click here to play</p>
+  </div>
+  <div id="mobile-rec">
+    <h2>Best on a real keyboard</h2>
+    <p>Keyboard Commander teaches touch-typing, which works best on a desktop with a physical keyboard. On a phone you can still play, but you won't get the finger-placement training the game is built for.</p>
+    <button id="mobile-continue">Play anyway</button>
+  </div>
+
+<script>
+(function(){
+'use strict';
+
+// ============================================================================
+// BOOM SOUND (inlined)
+// ============================================================================
+const BOOM_B64 = "UklGRgoxAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZmFjdAQAAACQMAAAZGF0YZAwAADS0c7Iwr61r6igmY+IgH12bmdhWldVTUtGQj46OTgzMzMzMzMzODpBQkZHS0tNVVhfanR/gIB+eHZxYVVqlpJ9iIx4eHiPq5KKxvDm19HS19rh7vj05trRyMK6tbOrqaGblIOAf3+AgoiMlJmfoamvs7W+v8bGx8fHx8bGv7+6tbKrqKCbkoyDgX52bmphWldRTUZBPjgzLy4oJiMgHxsbGxsbGhsbGx8gIyYmKCkuLzIzODk6Pj4+OjIoKDpNWmpxfYGIj5SZn6ChpqaoqKipqampqamopqGgn5mZlpmfoairsrO5ur6/wsbHx8jNzc3Ozs3Nzc3NyMjIx8fGxsbGx8bCurWvpqCbloyBfnRxbm5samdlYWBgX1pYWGFgSzpBTmBfVU1LR0E+S1hncX1/gICAfn12bmphX1hVTktGQkE+Ojo+PkFBQUJHS05XX25/f3Rlbn2BipSbsr66tbW1tbq+v7/CwsbHyMjNzcjHxsK/urWvqaaflpKMiIKAfnh2cW5qamdlYWFhYF9VOkJacX6Bg4qMjIyMjIqIg4OIioyPlJSZm5ufoaGhoaGhoaGhoaGgn5ublpSSjIqDgoB+eHZxbmpnYV9aVVVVVVVRTUY+MygbFAoCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEKFBQWHygzPkdRWmFsdn6CjJSboamyub7CyM7S2N3h5uru8PT2+Pn+/////////////////vn4+Pb08O7s6ubh4NrY0tHNyMK/urmzsquppqGgn5ubmZaUlJSUkpKSkpKUlJSWmZubn6GhqKmrsrO5ur/Cx8jO0dfa3eHl6uzu8Pb4+f7////////////////////////////////////////////////////////48Org183GvrWroJmSiIF+fYyDPiYzQi8mKCgoKCgmJiYjIyAgHx8bGxoWFBIQDAoHAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAIHCAoKBwAAACgfJjNGWGp2gIiSmaChqKipqKahoZ+ZlI+Kg4B9dnFqZWp4ZU1BKTNLQTgvLigbCBYvQlVfZ3F4fXh0dnRxcXFxdH2Sm5KKgn52fYKMlJufobPOzsbG2Obw+f/////////////////////////////////5////6uzs8Pj42MLd2tLhxoqPoIx9krKbVSYzTWFgPiY6YGxOWFhCKRYoMi4IDAoULzggEhsWOVhGHy86LjhBX0ZHV1pHODhGVV9qgIJ4eGpVKSZGVWeAgmFhQjlXboihq5mhpqGms7O5wrKUs8fd+erClJTR8NrR0dHXxuDm+eDN4NGzyMizpqDH8PDqx7PO3aGMtcKUgIi6xtLXzuD+/////+rw//Dm2s7SwsK5r8bY7vbXv7PY0r7C4dGzzvDh4c6pgn1hbmxqeIGAgIKSn766qaumj4qfmYyPn7LCucbCuqaDgpaKaldgX2d2dmdlgX9lSzNLS0IuFBopLzo+KShLanZ0cYqDdmBYf4+Mm7Khj3+CgW5gWk5BS2xucW5RUVEvLzlRV1dBFAwbOks5KTo5OS8jHyApOEZCPjlGWl9LS2FubGVngpSmn5KDlLW6vrqpq76olH9LOmF9iIiKucaoin50YWVqYWBfWmFgYGBhfo+IipSourOrqauflpmfoZmbr7mpqaaZoJuSgoOPm4FlYGp4gIKSlJSWinRXODNHYGVXYX1/lIx+dFpBVVpaWFVYVU5BJiMyV3iCf36CgFhHYHGbwsaviICUlH9uWk5NQjgpICAgIBoaGhQIBxQMAAAHDCZaamFnbmx4fYKDlKGIlr7R4eXw///5/vD48OXS19HHq4yMpp+DcWFhX3F4cVouBwcMJktVTk4+LhQygYyDlJuZn5+KgYOMm6izx+H5//DquoOMs8eys87IzeH24ca+yOb4/v//8M6hgIyrvrOyvsi5q5+UgICUg254gIiWloJ2fX2Aj4N2bHGAiH9xamp4ioN4WE5LVV9aV005MjpBVWFqcXRlOQIAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMIyYzQkdCQUJXVUJRaoCDiIOAgH1qYWpqbGdXTlFHOjIpKSgmJiYmICAgICYoJiYmKCkuMjo+QTkzMzk6Pk1qbGFxgIKIg5KZkpursrW/x9Hh5ebu+P//+fj4////////////////////+Ordzrqrq5aMoKiUfWdxf2VVZYCUlIBxgIiKjJSWlp+rs7rCvrOrusa6ucLCr5mIg4OBjKGoloiMmaGpqaipsqGfn6GooaGhlpSUj5SUj5SSioOKiIGAgYiMj4yUlpmSjIN+eH1/eGpVTmBaVUEzMz5CMzpCMzlOV26DgoJ/eIihqKuzs7rC0dLa5vD08PDq2trs9OrgzsjR4Orasp+fn5+rspuUm6aom5SKlJ+ZjIGIjI+bs7Wzq5uUlJm1yLmpoJuZlpKDeGpndH54dH6IgnhucWpneHZqX0tGWGphZW5ufoCKin6AmZ+bjICBgoB4cWxqbnZuampnamFVWlpXUVVhVVVaWGpxcVhRZW5ucYCMioODgpSZm6Cgloh+anF2ZVFRTUZHRj46OC8gFhIWGx8QChAWGygoGx8pMx8BAAAAAAEHCAwKBwcQHzpBIxIQEBQUFhogLjhBQTlGR0dgf394f4GPn6CbinhscYB2am5/j4+IlqGMbmp+iIqPkop/foyWkn9ucX+Pn5aZqbKvsq+ooKi1s5SImau6yNHNs5mKiIyIfXZ9dl9NWmpnYGFsam5xbnZ4dGxaS01RRi4fEgoIFCMpMi8zS19lbHiCg4F0ZWFncXiCm6i1urq5wtHR0c7R0tHS0tfm9PDw/v////////////jw5trd7Ozh2tra18a/wsfO0dHHr5uSin+AioyWoKGglpKDg5KSgXZ+gYGCg4J+fX+DkpKIj5SAdoOUlJaovsa5qZuSjIyIf25YWGdseIKAeHZxdICIjJKKiJKbpquytbKpqbXO186/ucLHvrq5s6+vr6upppufpqavubq1r6urtb6/wsa+q6GfmZmZm5uUgn6Dm6mrvtHSvqigin+DkpKAbGBgcX14WjgWAAAAAQAABwcUIxoCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAChYmOE5gYWp0f4GKlJmfoKGpq7O5urqztb/Cur7CxsjN0dHO0tjY0tjRwrq/x8bGzdrh4drS0tfIurWzr6GZlJKMioqIiIiIioODgoybqKihn6GzurKvs6GMiIOKlo+AfXZ0f4BuYWdsYVdLOThBPjMyM0ZVUVhgUT4+RjopHyAyQkdNS0tYZWBVTlFVWmFqbmpaV19gWlhYVUtLRzMgJkJaanZ0bGFYVUtGVWVlWlFLTlhheJu6wrqzr7Kzs7O1s6+ztbmzsrW+uq+hmZuoqKGgm5SUlI+Sn6uvq6+5wsa+ub/HxsjO0dHNyNfa2tHIx8fIzsfCwsK+tbq+wsK/vrq+ztrOwrq/zdHSzsfO5vj47N3SzcK1q5+bm5SKg39xamdlX1VVV05GQk1VX3iKlI+AfXh+gH+Agn90amFaTUdLV2VqZ1dGRktLRjoyM0ZVWFVNS0tOVVFLPikgKC4gGxsjQV9udHFualhLRk1halpGRldaWlpYWmFaTUZHVVdRRjo6PjMmGhspOEdYaniBiJarvs3d7O7m18e5pqCvurqyoZuUg31uZV9VTUIzLiYbGxQKCAgAAAAMFBAMCgwUFhQbM01RRkFCS1VXV19lamVhanFsYWFsf4ODgZm6yMKroKGpq6uzwtjh5d3Y2uXq6urw+f//////////////////////////////////+OrYvqaWjIyUmZubqKGDeICMobW+sqaoqZl/alpRRzguKCYuODgzLygbGhogHxYUBwAAAAAAAAAAAAAMLkFLS0dGQk5fYWVuYEIzOk1VX2yBm7OzoZurta+gjIKDjIp+cWpgWlhLRkI6LigoKCgmKC4uLzM5OkJOVVFOTk5YYGpucX2AgICDioiKjJShq7m6sqmyx+Hu8O7q6ubh3djItbKyq6Gpr6GWlJSWjHhhYWp2go+Mg4qKg4qZqK+pm4yMm5mIipKIfXh+fnh4fX54fYGIioB2eH9+f4GAcWFhYWFlYFhVUUtLWGFlZWpqbGdgV01LTldqfoqWoamyub66tamUjJKSjJKgucfCsqCgs7qyn5aUkoyDgX1sbFpaaniAg4iPmaCrv9Hd5v7///////Ts9vDSuqmptb7Cv6ugkoGCmaafjIOMkpKUj4OCfWphZW50cXZ+gYGBiJSZj35nWFdYTTozOUJHS0dBRkdHS1VYX2BaWGFnWk1BOTg+S05OUVhXRjk+R1dhamdqdn14fn1uZ2dsbm5udHh/fnRucXFubmxsdH14cW5xdHZ+gIKDj6Copqipr6mgoampqbK5urq5tbOzs7KppqGfn6GmoKCbm5uZlIqAf4CBgH10dHFqZ2psamdlYWBhYGBfWlpXUU1LS0dCQUE+QkJGQjoyLy8oIyMgHx8bGhoaGxoWFBQaICguMjIyOD5HTlFRV1dOTU5XX19gYWVqcX6DioqIgYCDjJafoaGpr6ign6CflpKKiIB0Z2FgWFVXWFdVUVFOS0tLR0dLS0ZCR01NTVVaWFhfYGBhYWFqbm5sbnFxcXF2fX5+fnh2gJKWj4OMlJSUmZ+gn6ChoaGpq7O1s7O6wsLCwr6+xs3NzdLa2s7CtbO+xsLH0dHIv7Wzr6mmqKu6x8jCx9fq6tjNyM3X2NfS2N3l6urg19jh5djR2N3g2tfS0tLX2uHl5e7+/vDu9vDq5uHSyM3S2trRwrOroZKCgoOKiIOIjIqDgHFgVVFVWmBfWmBndH54bmpnam5ubnF2fX99eHhxYWBlYVhNOiYWFBQWFhIMBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCAcKEBofICMgGyAmKSgjGx8jIyYuMjMvKCYmKTI+Qjo6Oj46LiYyPkI+QlhlYWVqampnYFpldoObr7WzsrK/0drX0trl5uXs+P/////////////////+6uHm5uHd0s7Ix8bCurOztbm6wsfIwr7Cv7q1s7rGwrmvq7Kvr7Krn5KMj4yIiIqCfXFsZ2pxcW5nampqZWx4fn54cW5scX6DjIyDgYCCg4J+fYCDioOCgoGDg4B4eHh4fX52cXh/f3hqYFdVVVVVTUdLVVFLR0dLS0tLS0I6MzMuKS4vMzMzLy8yLiYmLzIuLi4mHxsjKS4pKS4yMzg6Ojo5OTpCRktOV19hZ2pqZWpxdn1/f4KKg4ODiIyboaGhpqahoJ+ms7q+xs3S2t3g2trh4eHh5erq7Orq4dLHv7q6urq+v8ja3drRyMfI0dHS2uHs6uHa19LNurO6wsfCvr+6s6GWkpKPjIqIg399fXh4eHZ0dHFubG50eICDj5SUlpmgqKuzur6/vsLCyM7R0c7Nzc3Nzs3HwsbGwr6zqaGfm5aUjIBxamxsamdlYVhOVVpfWlVLQUJCQkFBQkFCS0tGRkZBOi8gEgcBAQABAgIHBwcIEBQUFAwBAAAAAAAAAAAAAAAAAAEIEhsjJiguLy4uOEJGQkFBOTM6QUJLR0ZHS01LS1FXWFVVUVVaX2FhZWpudHh9fn1+gH9/gYOIiIiCgoiPlqavs7Oyr7K1tbW1tbKrqKivub/CxsfO0tHNxsLGx83R0s7NyMjIxsbCwsLGxsbGurWzubq/wsbCvr61squpqaGfn5uWkoyKioyPj4qIgX9+f4GCgoGBgoiKj5KSlJabm5+fn6GmoaCblI+PlJaboaCZlJSSj4qKg4GBg4ODiIyPj4+Sko+KgX50cXF0dn1+fn19fX19fX5+foCAf3huZ2BgYWpxdnZ4eHRuamVhYF9fX1pYWFdXV1FRUU5OVVdXV1dYX19YVU5LS0tHPjk5OTk5ODk5OTpBTVVXWl9fX19gYGFham50eH19eHZ4fX19fX5+f39/f354eHh4dnFsZWVqbG5xdn1/fnh4foCBgYKBf35/gYKCgoF/fXZ2dnZ4fX14fX1+fXZ2eH19fX1+f4CCio+SkpKWn6irsrO1ubq/v7q6vr66ubm5s6+pqKGhn6Cgn5uUj4yKiIODgoB+eHZ0cW5ubnFxbGdlZWdhYWFhZWdnam5xcXF0eH1/gICAgYGBgoGBgoiMjIqKjIyMjIyMj4yKiIOCgYGAgYGAf3+AgICCg4ySmZ+hpquvs7q/wsfIztLa3eDh5urq7vD2+Pj4+Pj5/////vn5+PTw9Pb28O7q5eDa2NfRzcjHwrmyq6ihm5SMioOAf3h4dnRuamplYFpXVU5LRkJCQkJCPjgzMjIyMjIyLykoLi4uKCgoKCYoKS4pJiAfIB8aFhYaFhQUFBIQDAcHBwcHBwcIDAoICgwQFBQaGyAjKC8zMzg6PkJGR0tNTk5OUVVXWFpaWlpfYWFhZWdqampqamdnZ2dnampqampucXFxbm5xeH1/f36Ag4ySlJmbm5mZn6apq6+ytbrCx8jNyMjIzc3O0tLRzs3Nzs3Nzc3NyMjIyMfCv7q6ur7CxsjIwr+6vr66urq5tbm6v8K/v7+/vrmztbWzs7Ozs7O1tbWzr6+vq6uvr6umoJuZlpSSjIqKiIiIiIiDg4KBgH9/fnh2dHFsZ2FfWlhVTktGQkI+Ojk4ODgzMzMzMzMzMzMzODgzMzo+QkZHS01VV1hXV1hgYWVlZ2psamxucXR2eHh2eH1/gICBg4iMjI+Um5ubmZaWlpSPjIiIg4B/fXh4eHh4dHFxcW5qamdlZ2dlYWFfWlpYV1dYWFhYV1dXV1haX2BfWldVVVhaWFVOS0dHS0dHQkJCQkJCQkJCQkJCRktOVVdYWlpgZWpqbHFxdHh+f4CAgoOKioqMjJKUlJaWlpabm5mWmZuhqKmrr7O5ur6/wsbHyNHY4er0+f///////////////////////////////////////////vn5+Pjw6urq5d3X0cjGv7myqKCZlI+Mg4KCg4OCgHhxampqamplYFpaWldVVU5GOjMuLi4uLi4pKCkuLi8yMzk6QUE+Ojk6OjkzLi4pKCgoJiMfGxsbGxoaGhYWGhoaGxsfICMjJigpLi4uKS4vMzMzODk6OkJHTVVaYWBYUU5RUVVXWl9gYFpYWmFqbGxnYWFnbHFubHFxdHZ4eHh2eHh+gIGDg4qKjIqKjJSboaGmoaGhoKCgoairsrOysquopqaoqKmrq6upqauvsrOyr6mpqaimpqamoaGgn5+foaahoKCgn5+bmZSSko+Pj4+Sko+MioqIg4KBgH54dHFsamxsamdhYGBgX1hXV1daWlpYWFpaWlpYWFhYWFpgYWdnZ2pqbnZ4fX19fXh4eHh+f35+fX5/gYOKjJKSlpaZoKaoqKmoqKipq7K1ubWztbOysrKvsrOztbW5ubW1sq+pqKahoaGhoaGmpqaoqKimoZ+ZlJKMiIKCgoKCg4OIiIKAfXZxcW5xcXFxcXFuamVhYWFhYWVlYWVhYWFhWlpYV1VVWFpaWlpaWFhXV1pfYGFhX1pYVVVXWl9fWldVVVVVWFpaWFhYV1VVTUtNTU1NTU1NS0tLS0tLS0tLS0dGRkZGRkZGRkdLS0dLS0tNTlFVVVdaX2BhZ2pudHh4fX6AgIKDiIySlJSUlJSUlpufoaGhoKChpqmrq6+vq6mmoZuWlJaZmZmZmZmWlI+Kg4GAf319eHRubGpqbGxqZ2pqamdnZ2pqampqampsampqbGxubm5xcXF0dHRxbmxsbnF0dHR0dnh4foCCiIyMj5Sboaipq6urr7Kztbq+wsbGxsLCwsfN0dLS0c3IyMjNztHS0c3GwsLGyM7R0dHIwrqzq6ursrO1tbOrn5KKiIiIg4ODg4qKioqMjIyMioqMjIyMioODg4ODiIyPko+PkpSSkpKSlJaWlJaZm5ubmZaZm5mUko+PioKAgICAgH9+fnh2cWxqZ2dlYFdOS0dCQTo4MzMyLy8vLzI4Ojo6Oj4+Pjo6Oj5CRkdHR0tNTUtLTU5OS0ZCRk1VV1hYWmFhZ2psbnFxbmpqamxqamVhX19gYWdqamxucXh4fXh0cXF2fYCAgICAgICAgYGBg4iMkpSUj4yMjIyDgX9+f4CAgYKBgH59eHh4dHFxbmxsbnFxdnh4fn9/f35+f4CBgoODioyMjIyMj5KUko+SlJKPjIqDgYCAgH5+fn5/f4CAgICAfn14dnh+gIKDiIiDg4KCgYGBgoOIg4GBgoOIg4KBg4iDgYB+f4CBgYGAf35+fX5/gIKIiIiIg4qPkpSUlpaWmZmbn6Ghpqmrr6+rqaaoqKioqamopqamqKahoJ+fm5mUj4iCgoKDgoCAfn59eHRsZ2dnamxsbmxqZWVhYF9aV1VRUVFVV1pfYGFhZWVnZ2dnZWFgYWVnamxsbGxsbm5xcXR0dHZ4fX5/f359dnZ2eH59eHRxbGpqbGxsZ2VhYWFhX1hXWFpfYGBfWlpaWFdRTUtHRkJBQUFBOjk4OUFGTU5RUVVVWFpgZWdnZWBfX19lam5xcXFxcXF0eH2AipKZm5+goaipq6+ys7O5usLIzdHX19HNyMbCwsLIyM3Ixr65tbW5ubq+v7++ubOrqKGhoaiopqGhoJ+fm5+fm5uZlI+MioiDiIqIg4GAeHFqZWFhYWFlZ2VgWlhXVU5NTU1LRj45Mzg5OTk5OkFGR0tLS0tNVVpfYWFnbnZ4fX+AgoODiIqMj5SUmZuhqKmrqaimpqaoq6+ztbq6urmzs7Kvq6ihoaGmqKmopqGgoKGgm5mWlJKPjIiDgX94dHFsbnFsZ2VhYWFhYWFnamxucXZ4dnRxcXR2eHh9f4CBgICAgoODg4ODioiIiIySlJKMjJKUmZmbm6ChoaGmqKihm5mboKampqGgm5aUko+MjIqIg4OBf3h4eHZ0cWpqampnZWFhYFpXVVVVVVVVUVFOTk5VV1dYWFhYWlpaWlpfX19aWlpfWlpaWl9hZWpnZWFhYWVnamxxdHh9f39+fn5/gICAgH14dHFxeH1+fn5+fn19fn+AgH9+fX1/f3+AgIB/fXh2eHh+fn5+fn5/gICAgIB/eHZ4eHh4dnR2eH+AgoODgoKBgoOIioqIg4KAfnh2eH1/f39+fX19fXh4eHZ2dHR0dHR0cXFxbm5ucXFxbm5udHh+gIGCg4qMlJSWlpmbn6CmqKihoaGoq6+ys7Ozs7O1ubW1s7Ozsq+rr7Kzs7Ovq6mooZ+bm5+goaipqKahoJ+fn5+fm5mWlpSUkoyMioyPj5KUlJSSkpKUmZufm5mZm5+gn5+bmZmWlJSSj5SWm5uZlIyDg4KCgH9+fn14cW5qZ2BaV1VVUVFRUVVVVU5LR0ZGR0dHR0dHR0ZCPj5BRktLRkE6My8yMi8vLi4vMi8vLi4vLy8yMzk6PkFCRkZGRkdLUVhgZWVnZ2psbG5ucXR4fX5/gIGCg4qKj4+SlJSUlJSUlpaUkpKSkpKPj4+Pj4+PjIyPjIyPj4+SkpSUlJKPkpKSkpKUlJKPko+SkpKUlJaWmZmbn6CgoKCgoKGmpqaoqaurr7Kys7W1ubm5ubq6vr/Gx8fHx8fHx8fHwr++v7++ubOvqaihn5uWj4qDgYCAf359dnFqYVpXVVFOTUdCOjk5OTgzMi8vMjIyMi8uLi4uLi4uLi4vLy8vLy8vMjMzODo+QkZHS01OVVphampsbG5xdnh9fn19fX5/gICBg4qMj5KUlJSUlJSWmZmZmZmZm5ubm5mUlJKSj4yIgoGCg4yMjIqDgX99fX1+fn9/fn19fn9/fn5+f4CAgICBgoKDg4OIjIyMjIyMioqMkpSWmZmZm5ufn5+bm5uZm5ubmZmZmZmZmZmWlJKPjIiDgYCBg4iKjIqIioyPlJmbm5aSjIiDgoB/fn5/f3+AgIB/fn5/f359eHh4eHh4eHh0cWpnYWFhZ2pucXF0dHFubnFxcXFxcW5ubGxsbGxqampqampqampnZ2dqbG5ubm5ubnFxcXF0dHRxcXR0dnh9fn14eH1/gIKDg4OCgYKDjJKUlJSUlpSUko+Mj5SUlpmbm5ubm5uZlpSUlJKPioiDg4ODg4ODiIqKioqKiIiDg4OIiIiDg4KDg4ODg4GAgICBgYKCgYGAgH9/f39/gH9+fXh4eH19fXh2dnh4eHh4dHF0dnZ0dHR0dnh4eHh4eHh2dHZ2dnZ2dnR0dnh4eHh2dHR2fX+AgoODg4OBgH9+fXh4eHh4dnZ2dnZ4eH19eHh0cXFxcXFubGxubnF0dnZ4eH1+fnh0bmpqampsbGpqampqam5xcXFxcXFxdnh9fn5+fn5/f39/f4CAgYODiIqKioqKioqMjIyMioqMj5KUlJSSjIyKjIyMj4+Pj4yMj4+Sj4yMjI+PjIyPj5KSjIqIiIqKioqIg4ODg4ODiIODg4OIioqKioqMjIqDg4ODg4iMj5SWm5ugoaGgn5ubmZaUlpabm5+fm5uZlpSUko+MioiDg4ODiIqMj5KUlJSUkoyKiIiDg4ODgYGAgYGCg4OCgoKAgH59fX1+f39+fn12dHFubnF0dHFxbm5ubGxqZ2VlYWFhYWBgWlhXVVdXV1dXV1hYV1dYV1dXV1dXWFpaX19aX1pfX19gYGBgYGFhYWBgYGFhYWFlZ2dnZWVlZ2xxdn1+fn19eH19fn+AgoOIiIiIioqKjI+PkpSUlpaZmZubn5+bm5ubmZmZmZmbm5mZm5+goKGhoKCgn5+fn5+bmZmWlpSSkpKSlJKSkpKPj4yMioqKiIiIiIiDg4OCgoKCgYGBgIB/f359fXh4eHh4dnFubmxsampnZWFgYGBgYGBgX19aWlpYWFhaWl9fWlpaWlpaX19fYF9fX2BgYGBhYWVlamxudHR0dHRxcXFxdHZ4eHh9fn+BgYGCg4iKjIyPkpSUlpmbm5ubm5+hoaGmqKmpqampq6urq6uvr6+vq6urq6mpqampqaioqKahoKCfm5uWlpaZm5ubm5mUj4yMioiDg4KBgH9/f39/f354dnFxcW5ubm5sbGpnZWVhYWFhWlhXV1haWlpaWFdXVVVRTk5OUVVVVVFRUVFRTk5OTU1OUVVVVVVVVVVVVVVXWFhaWl9gYGFhYWVnam5ubmxsbGxucXF0dnh9fn+AgYODioqMjI+MjIyMjIyPkpSUlJSWmZufoKGhoaGhoKCgoKGhoaCgn5ubm5ufoKGhoKCfm5ubm5mZlpaWlpmZmZaUlJSUlJSUlJKPj4+PkpKUlpmZlpSSj4yKioqMjIyKioqKioqKiIOCgYGAgICBgYGBgICAgICAgIB/f39/f39/f39+fn14dnZ4eH5+fn19fX5+fn5+f3+AgICAgICAf39/f4CAgYKCgoKCgoGAgICAgIGCg4iKjIyMjIiDg4KCgoGAgICAgIGAgIB/f39+fn5+f39/f359eHZ0cXFxcW5sampqampqampqZ2VlYWFgX19gYGBgX1paWlpaWlpYWlpaWlpaWlpfX2BgYGFhYWFlZ2pqamxsbGxucXFxdHR0dHRxdHR4eH5/gICBgYKCgYGBgoODiIyMj4+SkpKSko+MjIyMkpSWlpaWlpSUlJSUlpaWlpmZm5uZmZmWlJSSkpSUlpmZmZmZmZubm5ufn6CgoJ+bmZaWlpmZm5mZm5ubm5uZlpKMjIyMjIyMjIyKioqKjIyMioiIg4ODg4KCgoODg4ODgoGBgYGAgICAf39/f39/f359fXh4eHh4eHh9fX19fX19fX19fX19eHZ2dnZ2dnZ0dHFxcXFxbm5sbGxsbGxubGxsbGxubm5xbm5sbGxsampnZWVlZWVlZWVlZWVlZWVlZWVlZ2dnZ2pqamxqamxsbGxsampqamxsbG5xcXR0dnZ2dnh9fX19fX19eHh4eHh9fX19fXh4eHh4eHh9fX5/f4CAgICAgICAgICAgYGBgYKCgoKCgoKCgoKCg4ODiIiIg4ODgoOCgoKCgoGBgYGBgYGAgICAf4CAgIB/fn59fXh9fX19fX14dnZ2dHZ2dnR0cXFxbm5ubGxsbm5sbGxqampqampqampnZ2dqamxsbm5ucXF2dnZ2dnZ2dnZ2dnZ2dnh4eHh2dnZ2eHh4fX5/f4CBgYKCg4OIioyMjI+PkpSUlpmZm5mZmZmbm5+foKCgoKCgoKCgoaGhpqamoaGgoJ+bm5ubm5ubm5ubm5ubm5ubm5uZmZubm5ubn5ubm5mZlpSUlJSWlpaWmZmZmZmZlpaUlJSUlJSUlJSUlJSUlJSSkpSUlJSUlJSUlJKSkpKSkpKPj4yPj4+Pj4yMjIqIioqKjIyMjIqKioqKiIODgoGAgICAgH9/gH9/f39/f4CAgICAgH9+fn19eHh4dnZ2dnZ0cW5sampnZ2VnZ2pqampqZ2FhX1paWFhYWFhYWFdXV1dVVVFRUVFRUU5NTU1NTU1NTk5OUVFRVVVVVVVVVVVVUVFVVVdXVVVVVVdYWlpaWlpfYGFhYWFhYWFhZWdqbG5xcXFxcXR0dHZ4eH1+gICAgIGBgoKDg4ODiIiKjIyMj4+MjIyPkpKSkpKSkpSUlJSWmZmbmZmZlpaZmZubm5ubm5+foKChoaGhoaCfn5ubm5ubm5ubm5ubm5ubn5+bm5aUkpKSkpSUlJSUkoyMioiDg4OCgoKCgoKCgYCAgH9+fXh2dHFubGxsbGxsbG5xcXFxbmxqampqampqampqampsbm5xcXFxcXF0dHR0dHZ4eH1+f39/gICAgICAgICBgoOIiIqMj5KUlJSWmZmbm5ubm5ubm5uZmZaWlJSUlJSUlpaWlpaUlJSUlJSUlJKPjIyPj4+Pj4+SkpKSkpKPjIyMjIyKioqIiIiDg4ODgoKBgIB/fn5+fn5/fn59eHh4eHh4eHRxcXFubnFxcW5sampqampqampqampsbG5ubm5ubm5ubm5ubm5ubm5ucXFxcXF0dHR0dHFxcXFxcW5ucXFxdHR2dnZ2dnh4eHh4eHh4eHh9fX1+fn9/f35+fX19fX19fX19fn9+f39/fn5+fn5+f39/f39/f39/f4CAgICBgoKCgoKDg4ODg4OIiIiIiIiIioqKioqKjIyMjIyMjIyMioqKioqKioqIiIiIg4OIiIiIiIOIg4ODg4ODgoKDgoKCgYGBgYGAgH9/fn5+fn5+fn5+fn9/fn59fX14eHZ2dnZ2dnZ0dHZ2dnh2dHR0cXFucW5ubm5ubm5ubm5ubm5sbGpqamxqbGpqampqampqampqamxsbGxsbGpqampqampqampqbGxsbm5ucXFxbm5xcXFxdHR0dnZ2eHh4fX19fX1+fn5+f3+AgICAgICBgICAgICAgYKCg4ODg4ODg4ODg4ODg4iIiIqKioiIg4OCgoKCgoKDg4ODg4KCgoGBgYGBgIGBgYGBgoKCgYGBgICAgIB/f39/f39/f35+fn5+fn1+fn5+fn5+fn5+fn5/f4CAgIB/f39/f4CAgICBgoKCgoKCgoODg4OIiIiIiIqKjIyMjIyMjIyMjIyMjIyMjIyMjI+PkpSUlJSUlJSUlJSUlpmZmZmWlpaUlJaWmZubm5ubm5ubm5ubm5mZmZmZmZmZmZmWlpaZmZmZmZmZmZmZmZaWlJSUlJSUlJKSko+MjIyMjIyMioqIg4ODgoKBgYGBgYCAgH9+fX14eHh2dnR0dHFxcXFxcXFxcXFxbm5sbGxsbGpqamdlZWVlZWVlYWFhYWFhYWFhYWFhYWFhYGBfX1paWlpaWlpaWl9fYGBgYWFhYWFhYWFhYWFhZWVhYWVlZWVlZWVlZWVnZ2dnZ2dnZ2dnZ2dnampqampqampqampsbnFxcXFxcXF0dHZ4eHh4eHh9fX1+fn9/f4CAgICBgYKCg4ODg4OIiIqKioqKioqMjIyMj4+Pj5KSlJSUlJSUlJSWlpaWlpaWlpaWlpaWlpmZmZaWlpSWlpaZmZmZmZaUlJSUlJSUlJSUlpSUlpaWlJSUlpaWlpmZmZmZm5ubm5+fn5+fn6CgoKCgoKCgoKCgn5+fm5ubm5ubmZmZmZaWlpSUlJKPjIyMjIqKiIiDg4OCgYCAgH9/fn59eHh4dnZ2dnZ2dHRxcXFubmxqamdlZWFhYWFhYWBgX19fX19fX1paWlhXV1dXV1dXV1VVVVVVVVVVVVVVVVVVVVVVV1dYWFhYWFpaWl9fX19fX19gYGFhZWdnampqbGxubm5ubnFxcXR0dnh4eHh4eHh4eHh4eHh4fX1+f3+AgIGBgoODg4ODg4iIioyMjIyMj4+Pj5KSlJSWlpmZm5ubm5ufn5+fm5ubm5ubm5ubm5+foKCgoaGhoaGgoKCfn5ubm5ubn5ubm5+bm5ubmZmWlpaWlpSUlJSUkpKPjIyMjIyKioqKiIiDg4OCgYGAgICAgICAgH9/f39+fn19eHh4eHh4eHh2dnZ2dnR0cXFxbm5ubGxsampqZ2dlZWVlZWVlYWFhYWFhYWFhZWVnZ2dnZ2dlZWVlZ2pqbGxsbGxsbGxsbm5ubnFxdHR2dnh4eHh9fn+AgIGCgoOCgoKDg4OIiIiIiIiIioqKjIyMjI+Pj4+MjIyKioqKioqIiIiIiIiIiIiDg4ODg4ODgoKCgoKBgYGBgYGBgICAgICAgIGBgICAgICAgICAgICAgICAgICAgICAgIGBgICAgICAgICAgICAgIB/f4B/f39/f39/f39/fn5+fn19fX19fX15eXl9eX19fX15eXl5eXl5eXl9fXh9fX19fX19fX19fX19fX19fn5+fn9+fn9/fn5+fn5+fn9/f3+AgICAgYGBgoKCgoKDg4OIiIiIiIiIiIiIiIqKioqMjIyMjIyPj4+Pj4+SkpKSj4+Pj4+Pj5KSkpKSlJSUkpKSkpKSkpKSj4+PjIyMioqIiIiIiIiIiIODgoKCgYGAf39/f39/f39/f35+fX19fXh4eHh4dnRxcXFxcXFxcXFxcXFxcXFxcXFubm5ubGxsbGxsbGxsampnZ2VlZWVlZWVlZWFhYWFhYWFhYWFhYWFhZWVlZWVlZWVlZ2dnZ2pqampqbGxsbGxsbm5ucXFxdHZ2eHh4eHh4fX5+fn5+f39/gICAgoKDg4ODiIqMjIyPj5KSlJSUlJaWlpaZmZubm5ubm5ubm5ubm5ubn5+fn5+fn5+fn5+bm5ubm5ubm5ubmZmZmZmZlpSUlJSSj4+Pj4yMjIyMjIqKiIiIiIiDg4OCgoKCgYGBgICAgIB/f39+fn19eHh4eHh4dnZ2dHRxcXFxcXFxbm5sbGxsbGxsbGxsbGxubm5ubm5ucXFxcXFxcXFxcXFubmxsbGxsbGxsbGpqamxsbGxqampqbGxsbGxsbG5xcXFxdHFxdHR0dnh4eHh9fX5+fn9/gICAgIGBgYKCgoKDg4ODg4ODg4ODiIiIiIiKioqMjIyMjIyKioqMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyKioqIioiIiIiDg4ODg4ODgoKCgoGBgYGBgICAgICAgICAf39/fn5+fn19fXh4eHh4eHh2dnZ4eHh4eHh4eHZ0dHR0dHRxcXFxcXFxcW5ubm5ubm5ubm5ubm5ubmxsbGxsbGxsbGxsbGxubm5xcXFxcXFxdHR0dnZ4eHh4eHh4fX19fn5+f3+AgICBgYGCgoKDg4OIiIiIioqMjIyPj5KSlJSUlJaWmZmbm5ubm5ubn5ufn5+fn5+fn5+fn5+fn5+bm5ubm5ubm5ubmZmZmZaWlpaWlpaUlJSUkpKPj4yMjIyMjIyMioqIg4ODgoGBgICAgH9+fXh4dnRxcXFxbm5sampqZ2dlZWFhYWFgYGBgYF9fX19fX19fX19fYGBgYGBgYGFhYWFhYWFlZWVnZ2dqampqbGxubnFxcXFxdHR0dnZ2eHh4eH19fX1+fn5/f3+AgICAgYGBgoKCgoKCgoKCgoKCgoKCg4OIiIiIiIiIiIiKioqKjIyMj4+SkpKSlJSUlpaWlpaWlpaZmZmZmZmZmZmZmZmZmZaWlpSUlJSUkpKSkpKPj4+PjIqKiIiDg4ODgoKCgoGBgYCAf39/fn5+fn59fXh4dnZ0dHR0dHR0cXFxbm5ubm5ubmxsbGxsbGxsbGxsbGpqamdqZ2dnZ2dnZWdnZ2dnampsbGxsbGxsbGxsbm5ucW5ubnFxcXFxdHR0dHR0dnZ2dnZ4eHh9fX14eHh4eHh4eHh4fX19fX19fX19fn5+fn9/f35/fn5+fn5+f39/gICAgIGBgICAgICBgICAgICAgICBgYGBgoKCgYGBgYGBgYGBgoKDg4KDgoKCg4ODg4ODg4ODg4ODg4ODg4ODg4KCgoKDg4ODg4ODg4ODgoGAgICAgICAgICAgICAgICAgICAgICBgYGAgICAgICAgH9/f39/f39/f39/f4CAgICAgIB/f39/f39/fn59fX19fX1+fn9/f35+fX19fn9/gICAgICAf39MSVNUQgAAAElORk9JQ1JECwAAADE5OTUtMDktMjUAAElFTkcOAAAATWljaGFlbCBCcm9zcwBJU0ZUDAAAAFNvdW5kIEZvcmdlAA==";
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+const VW = 1280, VH = 800;
+
+// Color palette (V4 carryover)
+const C = {
+  bg: '#0f0f14',
+  offWhite: '#dcdcdc',
+  brightWhite: '#ffffff',
+  blueGray: '#96a0aa',
+  cyan: '#64c8ff',
+  dimKey: '#373a41',
+  lockedKey: '#26282e',
+  mutedOrange: '#ff9632',
+};
+
+// Key groups
+const HOME = ['a','s','d','f','g','h','j','k','l'];
+const TOP = ['q','w','e','r','t','y','u','i','o','p'];
+const BOTTOM = ['z','x','c','v','b','n','m'];
+const NUMS = ['1','2','3','4','5','6','7','8','9','0'];
+const ROW_NAMES = ['home', 'top', 'bottom', 'number'];
+const ROW_KEYS = ['home', 'top', 'bottom', 'num'];
+
+// Word lists (V4 §7)
+const HOME_ROW_WORDS = [
+  'as','ad','ash','ask','lad','fad','sad','dad','had','has','gas','jak',
+  'dash','gash','hash','lash','sash','hall','fall','gall','shad','flak',
+];
+const TOP_ROW_WORDS = [
+  'the','this','that','they','were','with','your','here',
+  'just','right','light','sight','quest','quiet','typed','words',
+];
+const BOTTOM_ROW_WORDS = [
+  'jump','quick','every','above','below','world','place',
+  'moved','crazy','foxes','waltz','prize','block','cabin',
+];
+
+// Keyboard layout (staggered QWERTY, V4 §3)
+const KB_ROWS = [
+  { keys: ['1','2','3','4','5','6','7','8','9','0'], offset: 0.0 },
+  { keys: ['q','w','e','r','t','y','u','i','o','p'], offset: 0.3 },
+  { keys: ['a','s','d','f','g','h','j','k','l'],     offset: 0.55 },
+  { keys: ['z','x','c','v','b','n','m'],             offset: 1.0 },
+];
+
+// Speed tiers (5 now — V5 §2.7)
+// Velocities are world-units per frame at 60fps.
+const SPEED_TIERS = [
+  { name: 'Slow',      v: 0.30 },
+  { name: 'Medium',    v: 0.50 },
+  { name: 'Fast',      v: 0.75 },
+  { name: 'Very Fast', v: 1.10 },
+  { name: 'Pro',       v: 1.70 },
+];
+const TIER_COUNT = SPEED_TIERS.length;
+const VERY_FAST = 3; // unlock requires reaching this internal tier
+
+// Progression tunables (V4 §5)
+const EXPANSION_ACCURACY = 0.85;
+const EXPANSION_KPM = 125;
+const EXPANSION_WINDOW = 50;
+const EXPANSION_SUSTAIN = 30.0;
+const APPROACH_ACCURACY = 0.80;
+const SUBTIER_COOLDOWN = 12.0;
+const APPROACH_COOLDOWN = 25.0;
+const EXPANSION_HOLD = 3.0;
+
+// Bonus round
+const BONUS_INTERVAL = 45.0;
+const BONUS_DURATION = 15.0;
+const BONUS_COUNTDOWN = 3.0;
+
+// Field density
+const MAX_CONCURRENT_LETTERS = 3;
+
+// Session
+const SESSION_DUR = 180.0; // 3 minutes (decision #1)
+const ENC_INTERVAL = 20.0;
+const ENC_MSGS = ["Keep it up!", "You're on fire!", "Stay focused!", "Great flow!", "Almost there!"];
+
+// V8 §3.15: test-mode hotkey now runs at 5×, not 10× (was too fast to be useful).
+const TEST_MULTIPLIER = 5;
+
+// V8 §3.5: step-by-step home-row onboarding. F/J index-finger identification is
+// preserved up front (collaborator: "cannot be avoided"), then each home-row
+// finger is introduced before falling letters begin.
+const ONBOARDING_STEPS = [
+  { text: 'Place your left index finger on F\nand your right index finger on J.\n\nPress F to continue.', highlights: ['f','j'], waitKey: 'f' },
+  { text: 'These are your home keys.\nYour fingers always return here.\n\nPress J to continue.', highlights: ['f','j'], waitKey: 'j' },
+  { text: 'Find F and J by touch.\nFeel for the small bumps.\n\nPress F to continue.', highlights: ['f'], waitKey: 'f' },
+  { text: 'Left pinkie goes on A.\n\nPress A.', highlights: ['a'], waitKey: 'a' },
+  { text: 'Left ring finger goes on S.\n\nPress S.', highlights: ['s'], waitKey: 's' },
+  { text: 'Left middle finger goes on D.\n\nPress D.', highlights: ['d'], waitKey: 'd' },
+  { text: 'Right middle finger goes on K.\n\nPress K.', highlights: ['k'], waitKey: 'k' },
+  { text: 'Right ring finger goes on L.\n\nPress L.', highlights: ['l'], waitKey: 'l' },
+  { text: "You're ready!\n\nPress J to begin.", highlights: ['j'], waitKey: 'j' },
+];
+
+// V8 §3.6: finger callouts. Fired every ~30s of active play in phases 0–1.
+// Each wave runs ~12 falling letters heavy with the called key.
+const FINGER_NAMES = {
+  a: 'left pinkie',  s: 'left ring finger',   d: 'left middle finger', f: 'left index finger',
+  j: 'right index finger', k: 'right middle finger', l: 'right ring finger', ';': 'right pinkie',
+};
+const FINGER_KEYS = ['a','s','d','f','j','k','l'];
+const FINGER_CALLOUT_INTERVAL = 30.0;
+const FINGER_CALLOUT_BURST = 12;
+
+// Storage namespace — V8 schema bump (adds totalKeystrokes, sessionsPlayed)
+const LS_KEY = 'keyboardCommanderV8';
+
+// Mini-game IDs  (V8 §3.14: home-row Tetris added)
+const MINI = { WORD: 'word', RUNNER: 'runner', ARROW: 'arrow', HOMEROW: 'homerow' };
+
+// V7 §3.3 / V8 §3.14: intro card text per mini-game.
+const MINI_INTROS = {
+  word:    { title: 'Word Practice',         lines: ['Type the word you see.', 'Press space when you finish each word.'] },
+  runner:  { title: 'The Runner',            lines: ['Press the space bar to make your fox jump.', 'You can also press the letter on the obstacle to blow it up before the fox reaches it.'] },
+  arrow:   { title: 'Arrow Key Trainer',     lines: ['Put your right hand on the arrow keys.', 'Some pieces have a letter — type it to auto-place the piece.'] },
+  homerow: { title: 'Home-Row Trainer',      lines: ['Every piece carries a home-row letter.', 'Type the letter on the piece and it places itself.'] },
+};
+const INTRO_DURATION = 3.0; // V7 §3.3: 2-3 seconds before the round starts
+
+// V7 §3.5: The Runner persists for at least 45 seconds (no longer the 15s bonus window).
+const RUNNER_DURATION = 45.0;
+
+// V8 §3.2: toned-down mini-game palette — calmer 80s console aesthetic,
+// distinct from the main screen but no longer competing with gameplay.
+const MG_COLORS = {
+  // Runner: muted dusk gradient, soft amber fox, blue-gray obstacles.
+  runnerSky:    ['#1b1a2a', '#3a2a4a', '#5a4a5a'],
+  runnerGround: '#1a1620',
+  runnerObstacle: '#4a5a78',
+  runnerObstacleEdge: '#7a8ca8',
+  runnerCharBody: '#c89a5a',
+  runnerCharHead: '#d8a868',
+  // Word Practice: subtle cool background, a single soft accent for the word.
+  wordBg:    '#161821',
+  wordAccent: '#dcdcdc',
+  wordSoft:  '#6a7480',
+  // Tetrominoes: muted versions of the classic colors.
+  tetro: { I: '#5aa0b8', O: '#b8a05a', T: '#8a7aa8', S: '#6a9a6a', Z: '#a86a6a', J: '#6a7aa8', L: '#a8855a' },
+  arrowBg: '#10101a',
+  arrowGrid: '#1f1f2e',
+};
+
+// ============================================================================
+// STORAGE (Memory toggle)
+// ============================================================================
+const Storage = (() => {
+  function readRaw() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+  function writeRaw(data) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e){}
+  }
+  function load() {
+    const raw = readRaw();
+    return {
+      memoryEnabled: raw.memoryEnabled !== false, // default ON
+      slowFast: raw.slowFast === 'fast' ? 'fast' : 'slow',
+      phase: typeof raw.phase === 'number' ? raw.phase : 0,
+      rowTiers: raw.rowTiers || { home: 0, top: 0, bottom: 0, num: 0 },
+      keyStats: raw.keyStats || {},
+      personalBestWPM: typeof raw.personalBestWPM === 'number' ? raw.personalBestWPM : 0,
+      // V8 §3.4: longitudinal stats
+      totalKeystrokes: typeof raw.totalKeystrokes === 'number' ? raw.totalKeystrokes : 0,
+      sessionsPlayed: typeof raw.sessionsPlayed === 'number' ? raw.sessionsPlayed : 0,
+    };
+  }
+  function save(state) {
+    if (state.memoryEnabled === false) {
+      writeRaw({ memoryEnabled: false });
+      return;
+    }
+    writeRaw({
+      memoryEnabled: true,
+      slowFast: state.slowFast,
+      phase: state.phase,
+      rowTiers: state.rowTiers,
+      keyStats: state.keyStats,
+      personalBestWPM: state.personalBestWPM,
+      totalKeystrokes: state.totalKeystrokes,
+      sessionsPlayed: state.sessionsPlayed,
+    });
+  }
+  function wipe() {
+    writeRaw({ memoryEnabled: false });
+  }
+  return { load, save, wipe };
+})();
+
+// ============================================================================
+// AUDIO
+// ============================================================================
+const Audio = (() => {
+  let buf = null;
+  let ctx = null;
+  let unlocked = false;
+
+  function init() {
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const bin = atob(BOOM_B64);
+      const ab = new ArrayBuffer(bin.length);
+      const view = new Uint8Array(ab);
+      for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
+      ctx.decodeAudioData(ab, b => { buf = b; }, () => {});
+    } catch(e) {}
+  }
+  function unlock() {
+    if (unlocked || !ctx) return;
+    unlocked = true;
+    if (ctx.state === 'suspended') ctx.resume();
+  }
+  function play(volume = 0.2) {
+    if (!buf || !ctx) return;
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.value = volume;
+      src.connect(g).connect(ctx.destination);
+      src.start();
+    } catch(e) {}
+  }
+  function beep(freq = 660, dur = 0.08, volume = 0.05) {
+    if (!ctx) return;
+    try {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      g.gain.value = volume;
+      osc.connect(g).connect(ctx.destination);
+      osc.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      osc.stop(ctx.currentTime + dur);
+    } catch(e) {}
+  }
+  // V7 §3.3: shared earned-moment chime (also used by row-unlock announcements).
+  function chime() {
+    beep(523, 0.16, 0.06);
+    setTimeout(() => beep(659, 0.16, 0.06), 90);
+    setTimeout(() => beep(784, 0.20, 0.06), 180);
+  }
+  return { init, unlock, play, beep, chime };
+})();
+
+// ============================================================================
+// PLATFORM / INPUT HELPERS
+// ============================================================================
+const isMac = /Mac|iPad|iPhone|iPod/.test(navigator.platform);
+function isModifierPressed(ev) {
+  return isMac ? ev.metaKey : ev.ctrlKey;
+}
+function isTouch() {
+  return ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+}
+
+// ============================================================================
+// CANVAS
+// ============================================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = VW;
+canvas.height = VH;
+
+function resizeCanvas() {
+  // V7 §3.1: toggles moved to corners, no longer reserve a bottom band
+  const w = window.innerWidth, h = window.innerHeight;
+  const scale = Math.min(w / VW, h / VH);
+  canvas.style.width = (VW * scale) + 'px';
+  canvas.style.height = (VH * scale) + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Convert client coords to canvas coords if ever needed
+function clientToCanvas(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (cx - r.left) * (VW / r.width), y: (cy - r.top) * (VH / r.height) };
+}
+
+// ============================================================================
+// KEYBOARD GEOMETRY
+// ============================================================================
+const KB = (() => {
+  const kbW = VW * 0.78;
+  const kbH = VH * 0.24;
+  const kbY = VH - kbH - 20;
+  const nCols = 10;
+  const unit = kbW / (nCols + 0.5);
+  const kw = unit * 0.88;
+  const kh = kw * 0.88;
+  const rowH = kbH / 4.2;
+  const kbX = (VW - kbW) / 2;
+
+  const rects = {};
+  for (let ri = 0; ri < KB_ROWS.length; ri++) {
+    const { keys, offset } = KB_ROWS[ri];
+    const y = kbY + ri * rowH;
+    const x0 = kbX + offset * unit;
+    for (let ki = 0; ki < keys.length; ki++) {
+      rects[keys[ki]] = { x: x0 + ki * unit, y, w: kw, h: kh };
+    }
+  }
+  // Spacebar (decorative)
+  const spW = unit * 5;
+  rects[' '] = { x: (VW - spW) / 2, y: kbY + 3.5 * rowH, w: spW, h: kh * 0.65 };
+
+  return {
+    rects,
+    kr: Math.max(4, kw * 0.15),
+    gameTop: Math.floor(VH * 0.08),
+    gameBot: Math.floor(kbY - 20),
+    fallXMin: Math.floor(kbX + unit * 0.5),
+    fallXMax: Math.floor(kbX + kbW - unit * 0.5),
+  };
+})();
+
+// ============================================================================
+// GAME STATE
+// ============================================================================
+const G = {
+  // Persistent
+  memoryEnabled: true,
+  slowFast: 'slow',
+  phase: 0,
+  rowTiers: { home: 0, top: 0, bottom: 0, num: 0 },
+  keyStats: {}, // { ch: { c, t } }
+  personalBestWPM: 0,
+  // V8 §3.4: longitudinal Stats popup data
+  totalKeystrokes: 0,
+  sessionsPlayed: 0,
+
+  // V8 §3.6: finger callout wave state
+  calloutKey: null,            // key char currently being drilled, or null
+  calloutLettersLeft: 0,       // remaining biased letters in this wave
+  calloutNextAt: 0,             // active-play seconds at which next callout fires
+
+  // V8 §3.4: Stats popup pause bookkeeping
+  statsOpenedAt: 0,
+
+  // Session
+  state: 'onboarding', // onboarding | playing | menu | bonus_countdown | mini_word | mini_runner | mini_arrow | mini_homerow | end
+  obStep: 0,
+  sessionStart: 0,
+  correctChars: 0,
+  charsThisSession: 0,
+  sessionExpired: false,
+  expireTime: 0,
+  waitingHigh: false,
+  highTime: 0,
+  pauseTime: 0,
+  startWall: 0,
+  poolL: HOME.slice(),
+
+  // Falling letters
+  falling: [],
+  spawnCd: 0,
+  typedBuf: '',
+
+  // Particles
+  particles: [],
+  keyGlow: {}, // { ch: time }
+
+  // Progression bookkeeping
+  accWindow: [],
+  correctKsTimes: [],
+  expansionStart: null,
+  pendingPhase: null,
+  expansionHoldUntil: 0,
+  lastSubtierTime: 0,
+  lastApproachTime: 0,
+
+  // Bonus round
+  bonusAccum: 0,
+  bonusLastTick: 0,
+  bonusPauseStart: 0,
+  bcStart: 0,
+  bonusKind: null,
+
+  // Encouragement
+  encNext: 0,
+  encIdx: 0,
+
+  // Milestone (reinforcement message)
+  msText: null,
+  msTime: 0,
+  msDuration: 2.5,
+
+  // Menu
+  menuAlpha: 0,
+  menuTarget: 0,
+  menuSel: 0,
+  menuSrc: null,
+  menuAction: null,
+  menuDeferred: false,
+
+  // High-score celebration
+  hscFiring: false,
+  hscStart: 0,
+  newPB: false,
+
+  // Hidden testing hotkey
+  testFast: false,
+
+  // V7 §3.2: score-pulse animation timestamp
+  scorePulseTime: 0,
+
+  // Mini-games (per-game state stored on G)
+  word: null,
+  runner: null,
+  arrow: null,
+};
+
+// ============================================================================
+// DERIVED HELPERS
+// ============================================================================
+function unlockedSet() {
+  const s = new Set(HOME);
+  if (G.phase >= 1) TOP.forEach(c => s.add(c));
+  if (G.phase >= 2) BOTTOM.forEach(c => s.add(c));
+  if (G.phase >= 3) NUMS.forEach(c => s.add(c));
+  return s;
+}
+
+function updatePool() {
+  const p = G.phase;
+  if (p === 0) G.poolL = HOME.slice();
+  else if (p === 1) G.poolL = HOME.concat(TOP);
+  else if (p === 2) G.poolL = HOME.concat(TOP, BOTTOM);
+  else G.poolL = HOME.concat(TOP, BOTTOM, NUMS);
+}
+
+function currentSpeedKey() {
+  return ['home', 'top', 'bottom', 'num'][G.phase];
+}
+
+function rowKeyForChar(ch) {
+  if (NUMS.includes(ch)) return 'num';
+  if (BOTTOM.includes(ch)) return 'bottom';
+  if (TOP.includes(ch)) return 'top';
+  return 'home';
+}
+
+function speedFor(text) {
+  const ch = text[0];
+  const tier = G.rowTiers[rowKeyForChar(ch)];
+  let v = SPEED_TIERS[tier].v;
+  if (G.testFast) v *= TEST_MULTIPLIER;
+  return v;
+}
+
+function floorTier() {
+  return G.slowFast === 'slow' ? 0 : TIER_COUNT - 1;
+}
+
+function applyFloor() {
+  const f = floorTier();
+  if (G.slowFast === 'slow') {
+    // Slow drops every row to the new floor (V4 left-arrow behavior carried over)
+    for (const k of ROW_KEYS) G.rowTiers[k] = 0;
+  } else {
+    // Fast raises every row to the floor (rows already above stay)
+    for (const k of ROW_KEYS) G.rowTiers[k] = Math.max(G.rowTiers[k], f);
+  }
+}
+
+function persist() {
+  Storage.save({
+    memoryEnabled: G.memoryEnabled,
+    slowFast: G.slowFast,
+    phase: G.phase,
+    rowTiers: G.rowTiers,
+    keyStats: G.keyStats,
+    personalBestWPM: G.personalBestWPM,
+    totalKeystrokes: G.totalKeystrokes,
+    sessionsPlayed: G.sessionsPlayed,
+  });
+}
+
+function liveWPM() {
+  if (!G.sessionStart) return 0;
+  const elapsedMin = (now() - G.sessionStart) / 60.0;
+  if (elapsedMin <= 0.01) return 0;
+  return G.correctChars / 5 / elapsedMin;
+}
+
+function now() { return performance.now() / 1000; }
+
+// ============================================================================
+// MILESTONE / REINFORCEMENT
+// ============================================================================
+function setMilestone(text, duration = 2.5) {
+  G.msText = text;
+  G.msTime = now();
+  G.msDuration = duration;
+  spawnParticles(VW / 2, VH / 2 - 60, 30);
+}
+
+function milestoneVisible() {
+  if (G.msText === null) return false;
+  return (now() - G.msTime) < Math.max(G.msDuration, 2.5);
+}
+
+function drawMilestone() {
+  if (!G.msText) return;
+  const age = now() - G.msTime;
+  const dur = Math.max(G.msDuration, 2.5);
+  if (age > dur) { G.msText = null; return; }
+
+  const fadeIn = 0.3, fadeOut = 0.5;
+  const holdEnd = dur - fadeOut;
+  let alpha;
+  if (age < fadeIn) alpha = age / fadeIn;
+  else if (age < holdEnd) alpha = 1;
+  else alpha = 1 - (age - holdEnd) / fadeOut;
+  alpha = Math.max(0, Math.min(1, alpha));
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = C.cyan;
+  ctx.font = '500 44px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const cy = KB.gameTop + (KB.gameBot - KB.gameTop) / 3;
+  ctx.fillText(G.msText, VW / 2, cy);
+  ctx.restore();
+}
+
+// ============================================================================
+// PARTICLES
+// ============================================================================
+function spawnParticles(x, y, count = 20, color) {
+  for (let i = 0; i < count; i++) {
+    G.particles.push({
+      x, y,
+      dx: (Math.random() - 0.5) * 6,
+      dy: (Math.random() - 0.5) * 6,
+      life: 20 + Math.random() * 15,
+      color: color || C.cyan,
+    });
+  }
+}
+function spawnParticlesAtKey(ch, color) {
+  const r = KB.rects[ch];
+  if (r) spawnParticles(r.x + r.w / 2, r.y + r.h / 2, 15, color);
+}
+function updateParticles() {
+  for (let i = G.particles.length - 1; i >= 0; i--) {
+    const p = G.particles[i];
+    p.x += p.dx; p.y += p.dy; p.life -= 1;
+    if (p.life <= 0) G.particles.splice(i, 1);
+  }
+}
+function drawParticles() {
+  for (const p of G.particles) {
+    const a = Math.min(1, p.life / 30);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ============================================================================
+// KEYBOARD OVERLAY
+// ============================================================================
+function drawKeyboard() {
+  const t = now();
+  const unlocked = unlockedSet();
+
+  for (const ch of Object.keys(KB.rects)) {
+    const r = KB.rects[ch];
+    if (ch === ' ') {
+      ctx.strokeStyle = C.lockedKey;
+      ctx.lineWidth = 1;
+      roundRect(r.x, r.y, r.w, r.h, KB.kr); ctx.stroke();
+      continue;
+    }
+    const isUnlocked = unlocked.has(ch);
+    let baseCol = isUnlocked ? C.blueGray : C.lockedKey;
+    let lineW = 1;
+
+    if (isUnlocked && G.keyGlow[ch] !== undefined) {
+      const age = t - G.keyGlow[ch];
+      if (age < 0.5) { baseCol = C.cyan; lineW = 2; }
+      else delete G.keyGlow[ch];
+    } else if (!isUnlocked && G.keyGlow[ch] !== undefined) {
+      delete G.keyGlow[ch];
+    }
+
+    ctx.strokeStyle = baseCol;
+    ctx.lineWidth = lineW;
+    roundRect(r.x, r.y, r.w, r.h, KB.kr); ctx.stroke();
+
+    // CAPITAL letter labels (V5 §4 / decision #6)
+    ctx.save();
+    ctx.fillStyle = isUnlocked ? baseCol : C.lockedKey;
+    if (!isUnlocked) ctx.globalAlpha = 0.43;
+    ctx.font = '500 22px -apple-system, BlinkMacSystemFont, "Segoe UI", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ch.toUpperCase(), r.x + r.w / 2, r.y + r.h / 2);
+    ctx.restore();
+
+    // F/J homing dots
+    if ((ch === 'f' || ch === 'j') && isUnlocked) {
+      ctx.fillStyle = baseCol;
+      ctx.beginPath();
+      ctx.arc(r.x + r.w / 2, r.y + r.h - 6, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawKeyHighlight(ch, pulse, color) {
+  const r = KB.rects[ch];
+  if (!r) return;
+  const col = color || C.cyan;
+  let a = 0.63;
+  if (pulse) a = 0.4 + 0.31 * Math.sin(now() * 4);
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  roundRect(r.x, r.y, r.w, r.h, KB.kr); ctx.stroke();
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// ============================================================================
+// FALLING LETTERS
+// ============================================================================
+function spawnLetter() {
+  if (G.spawnCd > 0) { G.spawnCd -= 1; return; }
+  if (G.falling.length >= MAX_CONCURRENT_LETTERS) return;
+  // V8 §3.6: during a finger-callout wave, heavily bias the pool toward the called key.
+  let text;
+  if (G.calloutKey && G.calloutLettersLeft > 0) {
+    text = (Math.random() < 0.75) ? G.calloutKey : G.poolL[Math.floor(Math.random() * G.poolL.length)];
+    if (text === G.calloutKey) G.calloutLettersLeft -= 1;
+  } else {
+    text = G.poolL[Math.floor(Math.random() * G.poolL.length)];
+  }
+  ctx.font = '500 36px -apple-system, BlinkMacSystemFont, "Segoe UI", monospace';
+  const textW = ctx.measureText(text).width;
+  const lo = KB.fallXMin, hi = Math.max(lo, KB.fallXMax - textW);
+  const x = lo + Math.random() * (hi - lo);
+  const speed = speedFor(text);
+  G.falling.push({ text, x, y: KB.gameTop, speed });
+  const base = Math.max(60, 160 - Math.floor(speed * 25));
+  G.spawnCd = base;
+  // End the wave once the quota of called-finger letters has spawned.
+  if (G.calloutKey && G.calloutLettersLeft <= 0) {
+    G.calloutKey = null;
+  }
+}
+
+// V8 §3.6: fire a finger-callout drill wave. Only in phases 0 and 1.
+function maybeFireFingerCallout() {
+  if (G.calloutKey) return;
+  if (G.phase >= 2) return;
+  if (G.bonusAccum > 0 && G.calloutNextAt > 0 && G.bonusAccum < G.calloutNextAt) return;
+  if (G.correctChars < 3) return; // don't fire before any play has happened
+  // Pick a key from the keys that are unlocked.
+  const u = unlockedSet();
+  const candidates = FINGER_KEYS.filter(k => u.has(k));
+  if (!candidates.length) return;
+  const ch = candidates[Math.floor(Math.random() * candidates.length)];
+  const finger = FINGER_NAMES[ch] || 'that finger';
+  G.calloutKey = ch;
+  G.calloutLettersLeft = FINGER_CALLOUT_BURST;
+  setMilestone(`Use your ${finger} to press the ${ch.toUpperCase()} key.`, 3.0);
+  G.calloutNextAt = (G.bonusAccum || 0) + FINGER_CALLOUT_INTERVAL;
+}
+
+function moveFalling() {
+  for (let i = G.falling.length - 1; i >= 0; i--) {
+    const l = G.falling[i];
+    l.y += l.speed;
+    if (l.y > KB.gameBot) {
+      G.falling.splice(i, 1);
+      G.accWindow.push(false);
+      if (G.accWindow.length > EXPANSION_WINDOW) G.accWindow.shift();
+      G.charsThisSession += l.text.length;
+      for (const c of l.text) {
+        const s = G.keyStats[c] || { c: 0, t: 0 };
+        s.t += 1;
+        G.keyStats[c] = s;
+      }
+    }
+  }
+}
+
+function drawFalling() {
+  ctx.font = '500 36px -apple-system, BlinkMacSystemFont, "Segoe UI", monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  for (const l of G.falling) {
+    const range = KB.gameBot - KB.gameTop;
+    let fade = 1;
+    if (range > 0) {
+      const progress = (l.y - KB.gameTop) / range;
+      fade = Math.max(0.2, 1 - progress * 0.7);
+    }
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = l.text.length > 1 ? C.brightWhite : C.offWhite;
+    ctx.fillText(l.text, l.x, l.y);
+    ctx.restore();
+  }
+}
+
+function findMatch(buf) {
+  let best = null;
+  for (const l of G.falling) {
+    if (l.text === buf) {
+      if (!best || l.y > best.y) best = l;
+    }
+  }
+  return best;
+}
+
+function consumeMatch(m) {
+  const t = now();
+  G.correctChars += m.text.length;
+  G.charsThisSession += m.text.length;
+  G.totalKeystrokes += m.text.length;
+  G.scorePulseTime = t;
+  spawnParticles(m.x + 10, m.y, 20);
+  for (const c of m.text) {
+    G.keyGlow[c] = t;
+    const s = G.keyStats[c] || { c: 0, t: 0 };
+    s.c += 1; s.t += 1;
+    G.keyStats[c] = s;
+    G.correctKsTimes.push(t);
+  }
+  const idx = G.falling.indexOf(m);
+  if (idx >= 0) G.falling.splice(idx, 1);
+  Audio.play();
+  G.typedBuf = '';
+  G.accWindow.push(true);
+  if (G.accWindow.length > EXPANSION_WINDOW) G.accWindow.shift();
+}
+
+function handleType(ch) {
+  G.typedBuf += ch;
+  let m = findMatch(G.typedBuf);
+  if (m) { consumeMatch(m); return; }
+  if (G.falling.some(l => l.text.startsWith(G.typedBuf))) return;
+  G.typedBuf = ch;
+  m = findMatch(G.typedBuf);
+  if (m) consumeMatch(m);
+  else G.typedBuf = '';
+}
+
+// ============================================================================
+// PROGRESSION
+// ============================================================================
+function computeKPM() {
+  const cutoff = now() - 60.0;
+  while (G.correctKsTimes.length && G.correctKsTimes[0] < cutoff) G.correctKsTimes.shift();
+  return G.correctKsTimes.length;
+}
+
+function checkProgress() {
+  const t = now();
+  if (G.pendingPhase !== null) return;
+  const key = currentSpeedKey();
+  const tier = G.rowTiers[key];
+
+  // Sub-tier bump (V4 §5 — last 20 of acc_window at ≥85%)
+  if (G.accWindow.length >= 20) {
+    const recent = G.accWindow.slice(-20);
+    const acc = recent.filter(Boolean).length / recent.length;
+    if (acc >= EXPANSION_ACCURACY && tier < VERY_FAST &&
+        t - G.lastSubtierTime > SUBTIER_COOLDOWN) {
+      G.rowTiers[key] += 1;
+      G.lastSubtierTime = t;
+      const name = SPEED_TIERS[G.rowTiers[key]].name;
+      if (G.correctChars > 0) setMilestone(`Stepping up — ${name}!`);
+      G.accWindow = G.accWindow.slice(-10);
+      persist();
+      return;
+    }
+  }
+
+  // Row expansion (V4 §5 — full window, ≥85%, ≥125 KPM, sustained 30s)
+  if (G.accWindow.length < EXPANSION_WINDOW) return;
+  const fullAcc = G.accWindow.filter(Boolean).length / G.accWindow.length;
+  const kpm = computeKPM();
+
+  if (tier >= VERY_FAST && fullAcc >= EXPANSION_ACCURACY && kpm >= EXPANSION_KPM) {
+    if (G.expansionStart === null) G.expansionStart = t;
+    else if (t - G.expansionStart >= EXPANSION_SUSTAIN) {
+      triggerExpansion();
+      G.expansionStart = null;
+    }
+  } else {
+    G.expansionStart = null;
+  }
+
+  // Approach nudge
+  if (G.phase < 3 && tier >= 2 &&
+      fullAcc >= APPROACH_ACCURACY && fullAcc < EXPANSION_ACCURACY &&
+      t - G.lastApproachTime > APPROACH_COOLDOWN && G.correctChars > 0) {
+    setMilestone("You're getting close to the next row");
+    G.lastApproachTime = t;
+  }
+}
+
+function triggerExpansion() {
+  if (G.phase >= 3) return;
+  const oldRow = ROW_NAMES[G.phase];
+  const newRow = ROW_NAMES[G.phase + 1];
+  setMilestone(`Great work on the ${oldRow} row! Adding the ${newRow} row now.`, EXPANSION_HOLD + 1.0);
+  Audio.chime();
+  G.expansionHoldUntil = now() + EXPANSION_HOLD;
+  G.pendingPhase = G.phase + 1;
+  // New row inherits floor
+  const newKey = ROW_KEYS[G.phase + 1];
+  G.rowTiers[newKey] = Math.max(G.rowTiers[newKey], floorTier());
+  G.accWindow = [];
+  persist();
+}
+
+// ============================================================================
+// HUD
+// ============================================================================
+function drawHUD() {
+  // V8 §3.3: primary score reverts to the live correct-letter count. WPM is in Stats now.
+  // Toggle bar lives at ~y=18 (DOM), so HUD shifts below it.
+  const HUD_TOP = 70;
+  ctx.save();
+
+  // Live letter count (big, top center, framed by the two pulled-in toggles)
+  const letters = G.correctChars;
+  let pulse = 1;
+  if (G.scorePulseTime > 0) {
+    const age = now() - G.scorePulseTime;
+    if (age < 0.18) pulse = 1 + (1 - age / 0.18) * 0.18;
+    else G.scorePulseTime = 0;
+  }
+  ctx.fillStyle = C.cyan;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const numFont = '500 68px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+  if (pulse !== 1) {
+    ctx.save();
+    ctx.translate(VW / 2, HUD_TOP);
+    ctx.scale(pulse, pulse);
+    ctx.font = numFont;
+    ctx.fillText(String(letters), 0, 0);
+    ctx.restore();
+  } else {
+    ctx.font = numFont;
+    ctx.fillText(String(letters), VW / 2, HUD_TOP);
+  }
+  ctx.font = '400 14px "SF Mono", Consolas, Menlo, monospace';
+  ctx.fillStyle = C.blueGray;
+  ctx.fillText('LETTERS', VW / 2, HUD_TOP + 74);
+
+  // Speed indicator (right side, below Memory toggle)
+  const key = currentSpeedKey();
+  const tier = G.rowTiers[key];
+  const tierName = SPEED_TIERS[tier].name;
+  ctx.font = '400 14px "SF Mono", Consolas, Menlo, monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = C.blueGray;
+  ctx.fillText('SPEED: ' + tierName.toUpperCase(), VW - 90, HUD_TOP + 6);
+
+  const segW = 14, segH = 6, segGap = 4;
+  const barW = TIER_COUNT * segW + (TIER_COUNT - 1) * segGap;
+  const bx = VW - barW - 90;
+  const by = HUD_TOP + 26;
+  for (let i = 0; i < TIER_COUNT; i++) {
+    ctx.fillStyle = i <= tier ? C.cyan : C.dimKey;
+    roundRect(bx + i * (segW + segGap), by, segW, segH, 2);
+    ctx.fill();
+  }
+
+  // Time remaining (left side)
+  if (G.sessionStart) {
+    const remaining = Math.max(0, SESSION_DUR - (now() - G.sessionStart));
+    const m = Math.floor(remaining / 60);
+    const s = Math.floor(remaining % 60);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C.blueGray;
+    ctx.fillText(`${m}:${s.toString().padStart(2,'0')}`, 90, HUD_TOP + 6);
+  }
+
+  ctx.restore();
+}
+
+// ============================================================================
+// ENCOURAGEMENT (every 20s during play)
+// ============================================================================
+function tickEncouragement() {
+  if (!G.sessionStart) return;
+  if (G.correctChars === 0) return;
+  const elapsed = now() - G.sessionStart;
+  if (elapsed >= G.encNext) {
+    const wpm = Math.round(liveWPM());
+    const msg = ENC_MSGS[G.encIdx % ENC_MSGS.length];
+    setMilestone(`${msg}  ${wpm} WPM`);
+    G.encIdx += 1;
+    G.encNext = elapsed + ENC_INTERVAL;
+  }
+}
+
+// ============================================================================
+// SESSION END
+// ============================================================================
+function sessionMsg() {
+  const wpm = liveWPM();
+  if (wpm >= 40) return `Amazing session!  ${Math.round(wpm)} WPM`;
+  if (wpm >= 25) return `Great session!  ${Math.round(wpm)} WPM`;
+  if (wpm >= 15) return `Nice work!  ${Math.round(wpm)} WPM`;
+  return `Good start!  ${Math.round(wpm)} WPM`;
+}
+
+function checkPersonalBest() {
+  const wpm = liveWPM();
+  // V8 §3.4: count this session toward total sessions played.
+  if (G.charsThisSession > 0) {
+    G.sessionsPlayed += 1;
+  }
+  if (wpm > G.personalBestWPM && wpm >= 5) {
+    G.personalBestWPM = wpm;
+    G.newPB = true;
+    fireHighScoreCelebration();
+  }
+  persist();
+}
+
+function fireHighScoreCelebration() {
+  G.hscFiring = true;
+  G.hscStart = now();
+  // Burst of particles in cyan + white
+  for (let i = 0; i < 60; i++) {
+    spawnParticles(VW / 2, VH / 2, 1, i % 2 === 0 ? C.cyan : C.brightWhite);
+  }
+  Audio.beep(660, 0.12, 0.08);
+  setTimeout(() => Audio.beep(880, 0.12, 0.08), 120);
+  setTimeout(() => Audio.beep(1320, 0.18, 0.08), 240);
+}
+
+function drawHighScoreCelebration() {
+  if (!G.hscFiring) return;
+  const age = now() - G.hscStart;
+  if (age > 3.5) { G.hscFiring = false; return; }
+  // Pulse + label
+  const a = age < 0.3 ? age / 0.3 : (age > 3 ? Math.max(0, (3.5 - age) / 0.5) : 1);
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = C.cyan;
+  ctx.font = '700 68px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('NEW BEST!', VW / 2, VH / 2 - 40);
+  ctx.font = '500 32px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillStyle = C.brightWhite;
+  ctx.fillText(Math.round(G.personalBestWPM) + ' WPM', VW / 2, VH / 2 + 24);
+  ctx.restore();
+  // Sprinkle more particles
+  if (age < 2.5 && Math.random() < 0.4) {
+    spawnParticles(VW / 2 + (Math.random() - 0.5) * 600, VH / 2 + (Math.random() - 0.5) * 200, 3,
+      Math.random() < 0.5 ? C.cyan : C.brightWhite);
+  }
+}
+
+// ============================================================================
+// ONBOARDING
+// ============================================================================
+function obKey(ev) {
+  if (G.obStep >= ONBOARDING_STEPS.length) return;
+  const step = ONBOARDING_STEPS[G.obStep];
+  if (ev.key && ev.key.toLowerCase() === step.waitKey) {
+    G.keyGlow[step.waitKey] = now();
+    Audio.play();
+    spawnParticlesAtKey(step.waitKey);
+    G.obStep += 1;
+    if (G.obStep >= ONBOARDING_STEPS.length) {
+      startSession();
+    }
+  }
+}
+function obDraw() {
+  drawKeyboard();
+  drawParticles();
+  if (G.obStep >= ONBOARDING_STEPS.length) return;
+  const step = ONBOARDING_STEPS[G.obStep];
+  for (const c of step.highlights) drawKeyHighlight(c, true);
+  ctx.save();
+  ctx.fillStyle = C.offWhite;
+  ctx.font = '400 32px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // V8 §3.5: render multi-line step text.
+  const lines = step.text.split('\n');
+  const cy = KB.gameTop + (KB.gameBot - KB.gameTop) / 2;
+  const lineH = 40;
+  const total = lines.length * lineH;
+  const top = cy - total / 2 + lineH / 2;
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], VW / 2, top + i * lineH);
+  }
+  ctx.restore();
+}
+
+function startSession() {
+  resetSession();
+  G.state = 'playing';
+  G.sessionStart = now();
+  G.bonusLastTick = now();
+  G.encNext = ENC_INTERVAL;
+  G.startWall = now();
+  // V8 §3.6: first finger-callout wave fires after FINGER_CALLOUT_INTERVAL of active play.
+  G.calloutNextAt = FINGER_CALLOUT_INTERVAL;
+  G.calloutKey = null;
+  G.calloutLettersLeft = 0;
+}
+
+function resetSession() {
+  G.correctChars = 0;
+  G.charsThisSession = 0;
+  G.falling = [];
+  G.particles = [];
+  G.keyGlow = {};
+  G.typedBuf = '';
+  G.sessionStart = 0;
+  G.sessionExpired = false;
+  G.waitingHigh = false;
+  G.expireTime = 0;
+  G.spawnCd = 0;
+  G.accWindow = [];
+  G.correctKsTimes = [];
+  G.expansionStart = null;
+  G.pendingPhase = null;
+  G.expansionHoldUntil = 0;
+  G.lastSubtierTime = 0;
+  G.lastApproachTime = 0;
+  G.bonusAccum = 0;
+  G.bonusLastTick = 0;
+  G.bonusPauseStart = 0;
+  G.encNext = ENC_INTERVAL;
+  G.encIdx = 0;
+  G.msText = null;
+  G.menuAlpha = 0;
+  G.menuTarget = 0;
+  G.menuSel = 0;
+  G.menuAction = null;
+  G.menuDeferred = false;
+  G.hscFiring = false;
+  G.newPB = false;
+  // V8 §3.6: reset finger-callout wave state per session.
+  G.calloutKey = null;
+  G.calloutLettersLeft = 0;
+  G.calloutNextAt = FINGER_CALLOUT_INTERVAL;
+  updatePool();
+}
+
+// ============================================================================
+// PLAY LOOP
+// ============================================================================
+let lastFrameTime = 0;
+function playUpdate() {
+  const t = now();
+
+  // Expansion hold release
+  if (G.pendingPhase !== null && t >= G.expansionHoldUntil) {
+    G.phase = G.pendingPhase;
+    G.pendingPhase = null;
+    updatePool();
+    persist();
+  }
+
+  // Bonus active-play accumulator
+  const dt = t - G.bonusLastTick;
+  G.bonusLastTick = t;
+  if (G.msText === null) G.bonusAccum += dt;
+
+  // Trigger bonus
+  if (G.bonusAccum >= BONUS_INTERVAL && !G.sessionExpired && !G.waitingHigh && G.pendingPhase === null) {
+    startBonusCountdown();
+    return;
+  }
+
+  // V8 §3.6: fire finger-callout waves between bonuses, in phases 0–1.
+  if (G.bonusAccum >= G.calloutNextAt && G.pendingPhase === null && !G.sessionExpired) {
+    maybeFireFingerCallout();
+  }
+
+  tickEncouragement();
+
+  // Session expiry
+  const elapsed = t - G.sessionStart;
+  if (!G.sessionExpired && elapsed >= SESSION_DUR) {
+    // Let-them-finish-the-word handled in word_practice; for main game let
+    // existing falling letters clear gracefully.
+    G.sessionExpired = true;
+    G.expireTime = t;
+  }
+  if (G.sessionExpired && !G.waitingHigh) {
+    if (G.falling.length === 0 || (t - G.expireTime > 5)) {
+      checkPersonalBest();
+      setMilestone(sessionMsg());
+      G.waitingHigh = true;
+      G.highTime = t;
+    }
+  }
+  if (G.waitingHigh) {
+    updateParticles();
+    if (t - G.highTime > 2.5 && !G.hscFiring) {
+      openMenu('end');
+      G.waitingHigh = false;
+    }
+    return;
+  }
+
+  if (!G.sessionExpired) spawnLetter();
+  moveFalling();
+  updateParticles();
+  checkProgress();
+}
+
+function playDraw() {
+  drawKeyboard();
+  drawFalling();
+  drawParticles();
+  drawHUD();
+  drawMilestone();
+  drawHighScoreCelebration();
+}
+
+// ============================================================================
+// MENU
+// ============================================================================
+const MENU_OPTIONS = ['Play Again', 'How To Play', 'Play Mini Games', 'End For Now'];
+
+function openMenu(src) {
+  G.state = 'menu';
+  G.menuSrc = src;
+  G.menuSel = 0;
+  G.menuAction = null;
+  if (milestoneVisible()) {
+    G.menuTarget = 0;
+    G.menuDeferred = true;
+  } else {
+    G.menuTarget = 220;
+    G.menuDeferred = false;
+  }
+}
+
+function menuKey(ev) {
+  if (G.menuAlpha < 200) return;
+  const n = MENU_OPTIONS.length;
+  if (ev.key === 'ArrowUp') G.menuSel = (G.menuSel - 1 + n) % n;
+  else if (ev.key === 'ArrowDown') G.menuSel = (G.menuSel + 1) % n;
+  else if (ev.key === 'Enter' || ev.key === ' ') {
+    G.menuAction = G.menuSel;
+    G.menuTarget = 0;
+  }
+}
+
+function menuUpdate() {
+  if (G.menuDeferred) {
+    if (!milestoneVisible()) { G.menuDeferred = false; G.menuTarget = 220; }
+    return;
+  }
+  const speed = 12;
+  if (G.menuAlpha < G.menuTarget) G.menuAlpha = Math.min(G.menuTarget, G.menuAlpha + speed);
+  else if (G.menuAlpha > G.menuTarget) G.menuAlpha = Math.max(G.menuTarget, G.menuAlpha - speed);
+
+  if (G.menuAlpha === 0 && G.menuAction !== null) {
+    const action = G.menuAction; G.menuAction = null;
+    if (action === 0) {
+      // Play Again
+      if (G.menuSrc === 'pause') {
+        const paused = now() - G.pauseTime;
+        G.sessionStart += paused;
+        G.bonusLastTick = now();
+        G.state = 'playing';
+      } else {
+        resetSession();
+        startSession();
+      }
+    } else if (action === 1) {
+      // How To Play
+      G.obStep = 0;
+      G.state = 'onboarding';
+    } else if (action === 2) {
+      // Play Mini Games — random pick
+      startRandomMiniGame();
+    } else if (action === 3) {
+      // End For Now — clear screen, show idle
+      G.state = 'end';
+    }
+  }
+}
+
+function menuDraw() {
+  ctx.save();
+  ctx.fillStyle = `rgba(15,15,20,${G.menuAlpha / 255})`;
+  ctx.fillRect(0, 0, VW, VH);
+  if (G.menuAlpha < 100) { ctx.restore(); return; }
+
+  const aRatio = G.menuAlpha / 220;
+  const btnW = 380, btnH = 56, gap = 18;
+  const n = MENU_OPTIONS.length;
+  const totalH = n * btnH + (n - 1) * gap;
+  let cy = VH / 2 - totalH / 2;
+
+  if (G.menuSrc === 'end') {
+    ctx.globalAlpha = aRatio;
+    ctx.fillStyle = C.cyan;
+    ctx.font = '500 36px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sessionMsg(), VW / 2, cy - 60);
+  }
+
+  for (let i = 0; i < n; i++) {
+    const x = VW / 2 - btnW / 2;
+    const y = cy + i * (btnH + gap);
+    const sel = i === G.menuSel;
+    const col = sel ? C.cyan : C.blueGray;
+    ctx.globalAlpha = aRatio * 0.9;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = sel ? 2 : 1;
+    roundRect(x, y, btnW, btnH, KB.kr); ctx.stroke();
+
+    ctx.globalAlpha = aRatio;
+    ctx.fillStyle = col;
+    ctx.font = '500 24px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(MENU_OPTIONS[i], VW / 2, y + btnH / 2);
+  }
+  ctx.restore();
+}
+
+// ============================================================================
+// BONUS COUNTDOWN
+// ============================================================================
+function startBonusCountdown() {
+  G.bonusPauseStart = now();
+  G.bcStart = now();
+  G.bonusAccum = 0;
+  G.state = 'bonus_countdown';
+  // V8 §3.14: bonus rotation now includes the home-row Tetris trainer.
+  const choices = [MINI.WORD, MINI.RUNNER, MINI.ARROW, MINI.HOMEROW];
+  G.bonusKind = choices[Math.floor(Math.random() * choices.length)];
+  Audio.chime();
+}
+
+function bcUpdate() {
+  const t = now();
+  const elapsed = t - G.bcStart;
+  if (elapsed >= INTRO_DURATION) {
+    G.falling = [];
+    startBonus(G.bonusKind);
+  }
+  updateParticles();
+}
+
+function bcDraw() {
+  drawKeyboard();
+  // Fade leftover falling letters
+  const elapsed = now() - G.bcStart;
+  const fade = Math.max(0, 1 - elapsed / INTRO_DURATION);
+  ctx.save();
+  ctx.globalAlpha = fade * 0.5;
+  ctx.font = '500 36px -apple-system, BlinkMacSystemFont, "Segoe UI", monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  for (const l of G.falling) {
+    ctx.fillStyle = l.text.length > 1 ? C.brightWhite : C.offWhite;
+    ctx.fillText(l.text, l.x, l.y);
+  }
+  ctx.restore();
+  drawParticles();
+
+  // V7 §3.3: intro card — title, plain-language instructions, and a small countdown.
+  const intro = MINI_INTROS[G.bonusKind] || MINI_INTROS.word;
+  const cardW = Math.min(820, VW * 0.7);
+  const cardH = 280;
+  const cardX = (VW - cardW) / 2;
+  const cardY = KB.gameTop + (KB.gameBot - KB.gameTop) / 2 - cardH / 2 - 30;
+
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.fillStyle = '#161821';
+  roundRect(cardX, cardY, cardW, cardH, 16); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = C.cyan;
+  ctx.lineWidth = 2;
+  roundRect(cardX, cardY, cardW, cardH, 16); ctx.stroke();
+
+  ctx.fillStyle = C.cyan;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font = '600 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText(intro.title, VW / 2, cardY + 28);
+
+  ctx.fillStyle = C.offWhite;
+  ctx.font = '400 22px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  for (let i = 0; i < intro.lines.length; i++) {
+    ctx.fillText(intro.lines[i], VW / 2, cardY + 92 + i * 36);
+  }
+
+  ctx.fillStyle = C.blueGray;
+  ctx.font = '400 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  const remaining = Math.max(0, INTRO_DURATION - elapsed);
+  ctx.fillText(`Starting in ${Math.ceil(remaining)}...`, VW / 2, cardY + cardH - 42);
+  ctx.restore();
+}
+
+function startBonus(kind) {
+  if (kind === MINI.WORD) wordStart();
+  else if (kind === MINI.RUNNER) runnerStart();
+  else if (kind === MINI.ARROW) arrowStart();
+  else if (kind === MINI.HOMEROW) homerowStart();
+}
+
+function startRandomMiniGame() {
+  // Invoked from the menu "Play Mini Games" option.
+  G.bonusPauseStart = now();
+  G.bonusAccum = 0;
+  const choices = [MINI.WORD, MINI.RUNNER, MINI.ARROW, MINI.HOMEROW];
+  G.bonusKind = choices[Math.floor(Math.random() * choices.length)];
+  G.bcStart = now();
+  G.state = 'bonus_countdown';
+}
+
+function resumePlayAfterBonus() {
+  const t = now();
+  if (G.bonusPauseStart > 0 && G.sessionStart) {
+    const paused = t - G.bonusPauseStart;
+    G.sessionStart += paused;
+  }
+  G.bonusPauseStart = 0;
+  G.bonusLastTick = t;
+  G.bonusAccum = 0;
+  // If we came from the menu's "Play Mini Games" (no live session), go back to menu
+  if (!G.sessionStart) { openMenu('end'); return; }
+  G.state = 'playing';
+}
+
+// ============================================================================
+// MINI-GAME 1: WORD PRACTICE (V4 carryover)
+// ============================================================================
+function wordPool() {
+  const u = unlockedSet();
+  let words = HOME_ROW_WORDS.slice();
+  if (G.phase >= 1) words = words.concat(TOP_ROW_WORDS);
+  if (G.phase >= 2) words = words.concat(BOTTOM_ROW_WORDS);
+  const filtered = words.filter(w => [...w].every(c => u.has(c)));
+  return filtered.length ? filtered : HOME_ROW_WORDS.slice(0, 5);
+}
+
+function wordStart() {
+  G.word = {
+    word: '', typed: 0, startTime: now(), count: 0,
+    shake: 0, fade: 1, fading: false,
+    expired: false,  // V8 §3.8: timer expired but word in flight
+  };
+  wordNext();
+  G.state = 'mini_word';
+}
+
+function wordNext() {
+  // V8 §3.7: pick the next word and fully reset per-word state.
+  const pool = wordPool();
+  if (!pool || pool.length === 0) { wordFinish(); return; }
+  const prev = G.word.word;
+  const choices = pool.length > 1 ? pool.filter(w => w !== prev) : pool;
+  const list = choices.length ? choices : pool;
+  G.word.word = list[Math.floor(Math.random() * list.length)];
+  G.word.typed = 0;
+  G.word.fade = 1;
+  G.word.fading = false;
+}
+
+function wordKey(ev) {
+  const w = G.word;
+  if (w.fading) return;
+  if (!ev.key) return;
+
+  // V7 §3.3: space commits a finished word.
+  if (ev.key === ' ' || ev.key === 'Spacebar') {
+    if (w.typed >= w.word.length) {
+      w.count += 1;
+      w.fading = true;
+      G.scorePulseTime = now();
+      const r = KB.rects[w.word[w.word.length - 1]];
+      if (r) spawnParticles(r.x + r.w / 2, r.y + r.h / 2, 18);
+    } else {
+      w.shake = 0.4; // pressed space too early
+    }
+    return;
+  }
+
+  if (ev.key.length !== 1 || !/[a-z]/i.test(ev.key)) return;
+  if (w.typed >= w.word.length) { w.shake = 0.25; return; }
+
+  const target = w.word[w.typed];
+  const ch = ev.key.toLowerCase();
+  if (ch === target) {
+    w.typed += 1;
+    G.keyGlow[ch] = now();
+    G.correctChars += 1;
+    G.totalKeystrokes += 1;
+    G.scorePulseTime = now();
+    Audio.play();
+  } else {
+    // V8 §3.9: wrong letter shakes the word (no penalty).
+    w.shake = 0.4;
+  }
+}
+
+function wordUpdate() {
+  const w = G.word;
+  const elapsed = now() - w.startTime;
+  // V8 §3.8: when the timer runs out, mark expired but let any in-flight word finish.
+  if (!w.expired && elapsed >= BONUS_DURATION) {
+    w.expired = true;
+  }
+  if (w.shake > 0) w.shake = Math.max(0, w.shake - 1 / 60);
+
+  if (w.fading) {
+    w.fade -= 0.06;
+    if (w.fade <= 0) {
+      // V8 §3.8: if timer expired, no new word — exit the round now.
+      if (w.expired) { wordFinish(); return; }
+      // V8 §3.7: otherwise cycle to the next word reliably.
+      wordNext();
+    }
+  } else if (w.expired) {
+    // Timer up and nothing typed: exit immediately rather than show a dead word.
+    if (w.typed === 0) { wordFinish(); return; }
+    // Generous ceiling so we don't wait forever on an abandoned word.
+    if (elapsed >= BONUS_DURATION + 30.0) { wordFinish(); return; }
+  }
+  updateParticles();
+}
+
+function wordFinish() {
+  const cnt = G.word.count;
+  setMilestone(`Nice! ${cnt} words typed`);
+  resumePlayAfterBonus();
+}
+
+function wordDraw() {
+  // V7 §3.7: warmer purple-tinted backdrop, single bold accent for the word.
+  ctx.fillStyle = MG_COLORS.wordBg;
+  ctx.fillRect(0, 0, VW, VH);
+  drawKeyboard();
+  drawParticles();
+  // Timer bar
+  const elapsed = now() - G.word.startTime;
+  const ratio = Math.min(1, elapsed / BONUS_DURATION);
+  const fullW = Math.floor(VW * 0.4);
+  const bx = VW / 2 - fullW / 2;
+  ctx.fillStyle = '#3c465a';
+  roundRect(bx, 30, fullW, 4, 2); ctx.fill();
+  ctx.fillStyle = C.cyan;
+  const remW = Math.max(0, Math.floor(fullW * (1 - ratio)));
+  if (remW > 0) { roundRect(bx, 30, remW, 4, 2); ctx.fill(); }
+
+  let shake = 0;
+  if (G.word.shake > 0) shake = Math.sin(now() * 40) * 8 * (G.word.shake / 0.4);
+
+  const cy = KB.gameTop + (KB.gameBot - KB.gameTop) / 2 - 40;
+  drawProgressiveWord(G.word.word, G.word.typed, cy, shake, G.word.fade);
+
+  ctx.save();
+  ctx.fillStyle = C.offWhite;
+  ctx.font = '400 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`Words: ${G.word.count}`, 24, 24);
+  ctx.restore();
+  drawHUD();
+  drawHintEsc();
+}
+
+function drawProgressiveWord(word, typedCount, cy, shake, alpha) {
+  // V8 §3.2: toned-down palette — typed in muted gray, current letter in off-white, untyped in slightly dimmer off-white.
+  ctx.save();
+  ctx.font = '700 108px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  const widths = [...word].map(ch => ctx.measureText(ch).width);
+  const gap = 12;
+  const total = widths.reduce((a, b) => a + b, 0) + (word.length - 1) * gap;
+  let x = VW / 2 - total / 2 + shake;
+  for (let i = 0; i < word.length; i++) {
+    ctx.globalAlpha = alpha;
+    if (i < typedCount)        ctx.fillStyle = MG_COLORS.wordSoft;
+    else if (i === typedCount) ctx.fillStyle = MG_COLORS.wordAccent;
+    else                       ctx.fillStyle = '#a0a4ac';
+    ctx.fillText(word[i], x, cy);
+    x += widths[i] + gap;
+  }
+  ctx.restore();
+}
+
+function drawHintEsc() {
+  ctx.save();
+  ctx.fillStyle = C.blueGray;
+  ctx.font = '400 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Press Esc to end the round', VW / 2, KB.gameBot - 30);
+  ctx.restore();
+}
+
+// ============================================================================
+// MINI-GAME 2: THE RUNNER (V5 §6)
+// ============================================================================
+function runnerStart() {
+  G.runner = {
+    startTime: now(),
+    charX: 200,
+    charY: 0,
+    charVy: 0,
+    grounded: true,
+    jumping: false,
+    targetKey: null,
+    obstacles: [],
+    spawnNextAt: now() + 0.8,
+    speed: 240,
+    cleared: 0,
+    blownUp: 0,
+    jumped: 0,
+    bumped: 0,
+    bumpStop: 0,
+    blasts: [],
+    runFrame: 0,         // V8 §3.10: fox run-cycle frame timer
+    // V8 §3.11: real game-over state
+    gameOver: false,
+    gameOverAt: 0,
+    impactX: 0,          // where the X mark draws
+  };
+  G.state = 'mini_runner';
+}
+
+function runnerKey(ev) {
+  const r = G.runner;
+  const t = now();
+
+  // V8 §3.11: from the game-over state, Enter restarts, Esc handled globally.
+  if (r.gameOver) {
+    if (ev.key === 'Enter') {
+      runnerStart();
+    }
+    return;
+  }
+
+  if (r.bumpStop > t) return;
+
+  if (ev.key === ' ' || ev.key === 'Spacebar') {
+    if (!r.grounded) return;
+    r.charVy = -480;
+    r.grounded = false;
+    r.jumping = true;
+    Audio.play();
+    const nearest = r.obstacles.find(o => o.x > r.charX - 40 && o.x < r.charX + 220 && !o.cleared);
+    if (nearest) {
+      nearest.cleared = true;
+      r.cleared += 1;
+      r.jumped += 1;
+    }
+    return;
+  }
+
+  if (ev.key && ev.key.length === 1 && /[a-z0-9]/i.test(ev.key)) {
+    const ch = ev.key.toLowerCase();
+    const target = r.obstacles.find(o => !o.cleared && o.label === ch && o.x > -20 && o.x < VW + 20);
+    if (target) {
+      target.cleared = true;
+      r.cleared += 1;
+      r.blownUp += 1;
+      G.correctChars += 1;
+      G.totalKeystrokes += 1;
+      G.scorePulseTime = t;
+      G.keyGlow[ch] = t;
+      Audio.play();
+      r.blasts.push({ x: target.x, y: 0, life: 0.45, born: t });
+      const groundY = VH * 0.55;
+      spawnParticles(target.x, groundY - 14, 14, MG_COLORS.runnerObstacleEdge);
+    } else {
+      r.bumpStop = t + 0.25;
+      r.bumped += 1;
+    }
+  }
+}
+
+function runnerUpdate() {
+  const r = G.runner;
+  const t = now();
+  const dtMs = Math.min(50, performance.now() - lastFrameTime);
+  const dt = dtMs / 1000;
+
+  // V8 §3.11: game-over freezes the world; player chooses Enter or Esc.
+  if (r.gameOver) {
+    updateParticles();
+    return;
+  }
+
+  // V7 §3.5: persists 45s; V8 §3.11 lets a hit end it earlier.
+  if (t - r.startTime >= RUNNER_DURATION) { runnerFinish(); return; }
+
+  const ramp = Math.min(1, (t - r.startTime) / RUNNER_DURATION);
+  const speed = r.speed * (1 + ramp * 0.6) * (G.testFast ? TEST_MULTIPLIER : 1);
+
+  if (!r.grounded) {
+    r.charVy += 1400 * dt;
+    r.charY += r.charVy * dt;
+    if (r.charY >= 0) {
+      r.charY = 0;
+      r.charVy = 0;
+      r.grounded = true;
+      r.jumping = false;
+    }
+  }
+
+  // V8 §3.10: run-cycle animation timer
+  r.runFrame += dt * 8;
+
+  // Move obstacles, and V8 §3.11: detect impact with the runner.
+  for (let i = r.obstacles.length - 1; i >= 0; i--) {
+    const o = r.obstacles[i];
+    o.x -= speed * dt;
+    if (!o.cleared && !r.gameOver) {
+      // Collision: obstacle is at the runner column and the runner is on the ground.
+      const dx = o.x - r.charX;
+      if (dx <= 0 && dx > -28 && r.charY > -28) {
+        r.gameOver = true;
+        r.gameOverAt = t;
+        r.impactX = o.x;
+        Audio.beep(160, 0.20, 0.10);
+        spawnParticles(o.x, VH * 0.55 - 16, 24, MG_COLORS.runnerObstacleEdge);
+      }
+    }
+    if (o.x < -50) r.obstacles.splice(i, 1);
+  }
+
+  if (r.gameOver) { updateParticles(); return; }
+
+  for (let i = r.blasts.length - 1; i >= 0; i--) {
+    if (t - r.blasts[i].born >= r.blasts[i].life) r.blasts.splice(i, 1);
+  }
+
+  if (t >= r.spawnNextAt && (r.bumpStop < t)) {
+    const u = unlockedSet();
+    const pool = [...u].filter(c => c !== ' ');
+    const label = pool.length ? pool[Math.floor(Math.random() * pool.length)] : '';
+    r.obstacles.push({ x: VW + 20, label, cleared: false });
+    const baseGap = 1.4 - ramp * 0.5;
+    r.spawnNextAt = t + Math.max(0.7, baseGap);
+  }
+
+  updateParticles();
+}
+
+function runnerFinish() {
+  const r = G.runner;
+  setMilestone(`Nice! ${r.cleared} obstacles cleared`);
+  resumePlayAfterBonus();
+}
+
+// V8 §3.10: draw a simple pixel-style fox. Deliberately blocky — readable at speed.
+function drawFox(cx, cy, runFrame) {
+  // cy is the foot baseline. Fox is ~30px wide × 22px tall.
+  const px = 4; // "pixel" size for the blocky look
+  const body = MG_COLORS.runnerCharBody;
+  const head = MG_COLORS.runnerCharHead;
+  const dark = '#3a2618';
+  const white = '#e8d8c0';
+  // simple two-frame leg cycle
+  const stepUp = (Math.floor(runFrame) % 2 === 0);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  // body
+  ctx.fillStyle = body;
+  ctx.fillRect(cx - 16, cy - 18, 6 * px, 3 * px);
+  // tail (back, slight curve up)
+  ctx.fillRect(cx - 22, cy - 22, px, px);
+  ctx.fillRect(cx - 24, cy - 20, px, px);
+  // chest white
+  ctx.fillStyle = white;
+  ctx.fillRect(cx - 4, cy - 10, 2 * px, px);
+  // head
+  ctx.fillStyle = head;
+  ctx.fillRect(cx + 6, cy - 24, 3 * px, 3 * px);
+  // ears
+  ctx.fillRect(cx + 6, cy - 28, px, px);
+  ctx.fillRect(cx + 14, cy - 28, px, px);
+  // snout (lighter)
+  ctx.fillStyle = white;
+  ctx.fillRect(cx + 16, cy - 16, px, px);
+  // eye
+  ctx.fillStyle = dark;
+  ctx.fillRect(cx + 12, cy - 20, 2, 2);
+  // legs — two-frame run cycle, anchored to baseline cy
+  ctx.fillStyle = dark;
+  if (stepUp) {
+    ctx.fillRect(cx - 12, cy - 6, px, 6);
+    ctx.fillRect(cx + 6, cy - 4, px, 4);
+  } else {
+    ctx.fillRect(cx - 12, cy - 4, px, 4);
+    ctx.fillRect(cx + 6, cy - 6, px, 6);
+  }
+  ctx.restore();
+}
+
+function runnerDraw() {
+  const r = G.runner;
+  const groundY = VH * 0.55;
+  // V8 §3.2: muted dusk gradient.
+  const sky = MG_COLORS.runnerSky;
+  const grad = ctx.createLinearGradient(0, 0, 0, groundY);
+  grad.addColorStop(0, sky[0]);
+  grad.addColorStop(0.55, sky[1]);
+  grad.addColorStop(1, sky[2]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, VW, groundY);
+  ctx.fillStyle = MG_COLORS.runnerGround;
+  ctx.fillRect(0, groundY, VW, VH - groundY);
+
+  drawKeyboard();
+  // Track line
+  ctx.strokeStyle = '#2a2c36';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(60, groundY);
+  ctx.lineTo(VW - 60, groundY);
+  ctx.stroke();
+
+  // V8 §3.10: pixel fox character
+  const cx = r.charX;
+  const cy = groundY + r.charY;
+  drawFox(cx, cy, r.runFrame);
+
+  // Obstacles
+  ctx.font = '700 30px "SF Mono", Consolas, Menlo, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const o of r.obstacles) {
+    if (o.cleared) continue;
+    ctx.save();
+    ctx.fillStyle = MG_COLORS.runnerObstacle;
+    ctx.fillRect(o.x - 16, groundY - 32, 32, 32);
+    ctx.strokeStyle = MG_COLORS.runnerObstacleEdge;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(o.x - 16, groundY - 32, 32, 32);
+    if (o.label) {
+      ctx.fillStyle = '#dcdcdc';
+      ctx.fillText(o.label.toUpperCase(), o.x, groundY - 16);
+    }
+    ctx.restore();
+  }
+
+  for (const b of r.blasts) {
+    const age = now() - b.born;
+    const t01 = age / b.life;
+    const radius = 12 + t01 * 36;
+    const a = Math.max(0, 1 - t01);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = MG_COLORS.runnerObstacleEdge;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(b.x, groundY - 16, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawParticles();
+
+  // Timer bar (suppressed once game over so the impact moment reads cleanly)
+  if (!r.gameOver) {
+    const elapsed = now() - r.startTime;
+    const ratio = Math.min(1, elapsed / RUNNER_DURATION);
+    const fullW = Math.floor(VW * 0.4);
+    const bx = VW / 2 - fullW / 2;
+    ctx.fillStyle = '#3c465a';
+    roundRect(bx, 30, fullW, 4, 2); ctx.fill();
+    ctx.fillStyle = MG_COLORS.runnerObstacleEdge;
+    const remW = Math.max(0, Math.floor(fullW * (1 - ratio)));
+    if (remW > 0) { roundRect(bx, 30, remW, 4, 2); ctx.fill(); }
+  }
+
+  // Hints
+  ctx.save();
+  ctx.fillStyle = '#c8c4b8';
+  ctx.textAlign = 'center';
+  ctx.font = '400 16px "SF Mono", Consolas, Menlo, monospace';
+  if (!r.gameOver) {
+    ctx.fillText('SPACE TO JUMP  ·  TYPE THE LETTER TO BLOW IT UP', VW / 2, 60);
+    ctx.font = '400 14px "SF Mono", Consolas, Menlo, monospace';
+    ctx.fillText(`CLEARED: ${r.cleared}  (JUMPED ${r.jumped} · BLOWN UP ${r.blownUp})`, VW / 2, 84);
+  }
+  ctx.restore();
+
+  // V8 §3.11: gentle game-over with an "x" mark on the impact frame.
+  if (r.gameOver) {
+    // X mark over the impact point
+    ctx.save();
+    ctx.strokeStyle = '#dcdcdc';
+    ctx.lineWidth = 4;
+    const xx = r.impactX, xy = groundY - 16;
+    ctx.beginPath();
+    ctx.moveTo(xx - 12, xy - 12); ctx.lineTo(xx + 12, xy + 12);
+    ctx.moveTo(xx + 12, xy - 12); ctx.lineTo(xx - 12, xy + 12);
+    ctx.stroke();
+    // Soft dim overlay
+    ctx.fillStyle = 'rgba(15,15,20,0.55)';
+    ctx.fillRect(0, 0, VW, VH);
+    ctx.fillStyle = C.cyan;
+    ctx.font = '500 44px "SF Mono", Consolas, Menlo, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('CAUGHT BY AN OBSTACLE', VW / 2, VH / 2 - 30);
+    ctx.fillStyle = C.offWhite;
+    ctx.font = '400 22px "SF Mono", Consolas, Menlo, monospace';
+    ctx.fillText(`Cleared ${r.cleared} before the stop.`, VW / 2, VH / 2 + 14);
+    ctx.fillStyle = C.blueGray;
+    ctx.font = '400 18px "SF Mono", Consolas, Menlo, monospace';
+    ctx.fillText('Press Enter to run again  ·  Esc for menu', VW / 2, VH / 2 + 56);
+    ctx.restore();
+  } else {
+    drawHintEsc();
+  }
+}
+
+// ============================================================================
+// MINI-GAME 3: ARROW KEY TRAINER (V8 §3.12, §3.13)
+// MINI-GAME 4: HOME-ROW TETRIS    (V8 §3.14)
+// ============================================================================
+// V8 §3.12: larger, lower, clearly bounded playfield; no HUD overlay.
+const ARROW_COLS = 10, ARROW_ROWS = 18;
+const ARROW_CELL = 32;
+const ARROW_FIELD_W = ARROW_COLS * ARROW_CELL;  // 320
+const ARROW_FIELD_H = ARROW_ROWS * ARROW_CELL;  // 576
+const ARROW_FX = Math.round((VW - ARROW_FIELD_W) / 2);
+const ARROW_FY = 140; // slightly lower than center so the field sits where the eye expects a board
+
+// V8 §3.13: 1-in-4 pieces lettered; letter pool tied to currently unlocked rows.
+const ARROW_LETTERED_RATIO = 0.25;
+// V8 §3.14: home-row trainer letter set.
+const HOMEROW_LETTERS = ['a','s','d','f','j','k','l',';'];
+
+const TETRO = {
+  I: [[1,1,1,1]],
+  O: [[1,1],[1,1]],
+  T: [[1,1,1],[0,1,0]],
+  S: [[0,1,1],[1,1,0]],
+  Z: [[1,1,0],[0,1,1]],
+  J: [[1,0,0],[1,1,1]],
+  L: [[0,0,1],[1,1,1]],
+};
+const TETRO_NAMES = Object.keys(TETRO);
+
+function arrowStart() {
+  G.arrow = {
+    startTime: now(),
+    grid: Array.from({length: ARROW_ROWS}, () => Array(ARROW_COLS).fill(0)),
+    piece: null, pieceName: 'I', pieceX: 0, pieceY: 0,
+    pieceLetter: null,           // V8 §3.13: non-null on lettered pieces
+    fallAccum: 0,
+    fallInterval: 0.9,
+    cleared: 0,
+    rampStart: now(),
+    bumpStop: 0,
+    toppedOut: false,
+    autoBurst: null,             // {x,y,t} for the auto-place animation flash
+  };
+  arrowNewPiece(false);
+  G.state = 'mini_arrow';
+}
+
+function arrowNewPiece(forceHomeRow) {
+  const a = G.arrow;
+  const elapsed = now() - a.rampStart;
+  const ramp = Math.min(1, elapsed / 12.0);
+  const name = TETRO_NAMES[Math.floor(Math.random() * TETRO_NAMES.length)];
+  let shape = TETRO[name].map(r => r.slice());
+  if (ramp > 0.6 && Math.random() < 0.5) shape = arrowRotate(shape);
+  a.piece = shape;
+  a.pieceName = name;
+  // V8 §3.13: assign a letter to ~25% of pieces (or always, in home-row mode).
+  if (forceHomeRow) {
+    a.pieceLetter = HOMEROW_LETTERS[Math.floor(Math.random() * HOMEROW_LETTERS.length)];
+  } else if (Math.random() < ARROW_LETTERED_RATIO) {
+    // Letter pool drawn from currently unlocked rows in the main game.
+    const u = unlockedSet();
+    const pool = [...u].filter(c => c !== ' ');
+    a.pieceLetter = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  } else {
+    a.pieceLetter = null;
+  }
+  const center = Math.floor((ARROW_COLS - shape[0].length) / 2);
+  const offsetMax = Math.floor(ramp * 3);
+  const offset = offsetMax > 0 ? (Math.floor(Math.random() * (offsetMax * 2 + 1)) - offsetMax) : 0;
+  a.pieceX = Math.max(0, Math.min(ARROW_COLS - shape[0].length, center + offset));
+  a.pieceY = 0;
+  a.fallAccum = 0;
+  a.fallInterval = Math.max(0.25, 0.9 - ramp * 0.5);
+  if (G.testFast) a.fallInterval /= TEST_MULTIPLIER;
+  return arrowCanFit(shape, a.pieceX, a.pieceY);
+}
+
+function arrowRotate(shape) {
+  const h = shape.length, w = shape[0].length;
+  const out = Array.from({length: w}, () => Array(h).fill(0));
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) out[x][h - 1 - y] = shape[y][x];
+  return out;
+}
+
+function arrowCanFit(shape, px, py) {
+  for (let y = 0; y < shape.length; y++) {
+    for (let x = 0; x < shape[0].length; x++) {
+      if (!shape[y][x]) continue;
+      const gx = px + x, gy = py + y;
+      if (gx < 0 || gx >= ARROW_COLS || gy >= ARROW_ROWS) return false;
+      if (gy >= 0 && G.arrow.grid[gy][gx]) return false;
+    }
+  }
+  return true;
+}
+
+// V8 §3.13: optimality function — min stack height → fewest holes → most lines cleared.
+// Returns { shape, px, py, score } for the best placement; tie-broken in spec order.
+function arrowFindBestPlacement(originalShape) {
+  let best = null;
+  const seen = new Set();
+  let shape = originalShape.map(r => r.slice());
+  for (let rot = 0; rot < 4; rot++) {
+    const key = JSON.stringify(shape);
+    if (!seen.has(key)) {
+      seen.add(key);
+      for (let x = -2; x <= ARROW_COLS + 1; x++) {
+        // Find lowest y where this (x) fits.
+        let y = 0;
+        // Start at top, push down until it would collide.
+        if (!arrowCanFit(shape, x, y)) continue;
+        while (arrowCanFit(shape, x, y + 1)) y += 1;
+        // Evaluate landing at (x, y).
+        // Higher score wins. Negate values where smaller is better.
+        const ev_ = arrowEvaluatePlacement(shape, x, y);
+        const score = [ev_.negHeight, -ev_.holes, ev_.linesCleared];
+        if (!best || compareScore(score, best.score) > 0) {
+          best = { shape, px: x, py: y, score };
+        }
+      }
+    }
+    shape = arrowRotate(shape);
+  }
+  return best;
+}
+
+function compareScore(a, b) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] > b[i]) return 1;
+    if (a[i] < b[i]) return -1;
+  }
+  return 0;
+}
+
+function arrowEvaluatePlacement(shape, px, py) {
+  // Clone grid and stamp the shape.
+  const g = G.arrow.grid.map(r => r.slice());
+  for (let y = 0; y < shape.length; y++) {
+    for (let x = 0; x < shape[0].length; x++) {
+      if (!shape[y][x]) continue;
+      const gx = px + x, gy = py + y;
+      if (gy >= 0 && gy < ARROW_ROWS && gx >= 0 && gx < ARROW_COLS) g[gy][gx] = 1;
+    }
+  }
+  // Lines cleared.
+  let linesCleared = 0;
+  for (let y = ARROW_ROWS - 1; y >= 0; y--) {
+    if (g[y].every(v => v)) { g.splice(y, 1); g.unshift(Array(ARROW_COLS).fill(0)); linesCleared += 1; y += 1; }
+  }
+  // Stack top — highest filled row index from top.
+  let stackTop = ARROW_ROWS;
+  for (let y = 0; y < ARROW_ROWS; y++) {
+    if (g[y].some(v => v)) { stackTop = y; break; }
+  }
+  const stackHeight = ARROW_ROWS - stackTop;
+  // Holes: empty cells with at least one filled cell above in the same column.
+  let holes = 0;
+  for (let x = 0; x < ARROW_COLS; x++) {
+    let seenFilled = false;
+    for (let y = 0; y < ARROW_ROWS; y++) {
+      if (g[y][x]) seenFilled = true;
+      else if (seenFilled) holes += 1;
+    }
+  }
+  // negHeight: larger means a shorter resulting stack (so larger = better).
+  return { negHeight: -stackHeight, holes, linesCleared };
+}
+
+function arrowLockPiece() {
+  const a = G.arrow;
+  for (let y = 0; y < a.piece.length; y++) {
+    for (let x = 0; x < a.piece[0].length; x++) {
+      if (!a.piece[y][x]) continue;
+      const gx = a.pieceX + x, gy = a.pieceY + y;
+      if (gy >= 0 && gy < ARROW_ROWS) a.grid[gy][gx] = 1;
+    }
+  }
+  for (let y = ARROW_ROWS - 1; y >= 0; y--) {
+    if (a.grid[y].every(v => v)) {
+      a.grid.splice(y, 1);
+      a.grid.unshift(Array(ARROW_COLS).fill(0));
+      a.cleared += 1;
+      Audio.play();
+      y += 1;
+    }
+  }
+  const forceHomeRow = G.state === 'mini_homerow';
+  const fits = arrowNewPiece(forceHomeRow);
+  if (!fits) {
+    a.toppedOut = true;
+    a.bumpStop = now() + 1.4;
+  }
+}
+
+function arrowKey(ev) {
+  const a = G.arrow;
+  if (a.toppedOut) return;
+  if (a.bumpStop > now()) return;
+
+  // V8 §3.13: if the active piece is lettered and the player types that letter,
+  // auto-rotate and slide it to the optimal position, then lock.
+  if (a.pieceLetter && ev.key && ev.key.length === 1) {
+    const ch = ev.key.toLowerCase();
+    if (ch === a.pieceLetter) {
+      arrowAutoPlace();
+      return;
+    }
+  }
+
+  if (ev.key === 'ArrowLeft') {
+    if (arrowCanFit(a.piece, a.pieceX - 1, a.pieceY)) a.pieceX -= 1;
+  } else if (ev.key === 'ArrowRight') {
+    if (arrowCanFit(a.piece, a.pieceX + 1, a.pieceY)) a.pieceX += 1;
+  } else if (ev.key === 'ArrowDown') {
+    if (arrowCanFit(a.piece, a.pieceX, a.pieceY + 1)) a.pieceY += 1;
+  } else if (ev.key === 'ArrowUp') {
+    const rot = arrowRotate(a.piece);
+    if (arrowCanFit(rot, a.pieceX, a.pieceY)) a.piece = rot;
+  }
+}
+
+function arrowAutoPlace() {
+  const a = G.arrow;
+  const best = arrowFindBestPlacement(a.piece);
+  if (!best) return;
+  a.piece = best.shape;
+  a.pieceX = best.px;
+  a.pieceY = best.py;
+  // Score the typing action — counts as one correct keystroke.
+  G.correctChars += 1;
+  G.totalKeystrokes += 1;
+  G.scorePulseTime = now();
+  if (a.pieceLetter) G.keyGlow[a.pieceLetter] = now();
+  // Burst at the locked centroid for satisfying feedback.
+  const cx = ARROW_FX + (a.pieceX + a.piece[0].length / 2) * ARROW_CELL;
+  const cy = ARROW_FY + (a.pieceY + a.piece.length / 2) * ARROW_CELL;
+  spawnParticles(cx, cy, 18, MG_COLORS.tetro[a.pieceName] || C.cyan);
+  a.autoBurst = { x: cx, y: cy, t: now() };
+  Audio.play();
+  arrowLockPiece();
+}
+
+function arrowUpdate() {
+  const a = G.arrow;
+  const t = now();
+  if (a.toppedOut && t >= a.bumpStop) { arrowFinish(); return; }
+  if (a.bumpStop > t) { updateParticles(); return; }
+  const dt = Math.min(0.05, (performance.now() - lastFrameTime) / 1000);
+  a.fallAccum += dt;
+  if (a.fallAccum >= a.fallInterval) {
+    a.fallAccum = 0;
+    if (arrowCanFit(a.piece, a.pieceX, a.pieceY + 1)) a.pieceY += 1;
+    else arrowLockPiece();
+  }
+  updateParticles();
+}
+
+function arrowFinish() {
+  setMilestone(`Nice! ${G.arrow.cleared} lines cleared`);
+  resumePlayAfterBonus();
+}
+
+// V8 §3.12: shared draw for both Tetris mini-games — no HUD overlay,
+// instructions and labels above/below the field only.
+function drawTetrisField(modeLabel, instructionLine) {
+  const a = G.arrow;
+  ctx.fillStyle = MG_COLORS.arrowBg;
+  ctx.fillRect(0, 0, VW, VH);
+
+  // Frame — clearly bounded
+  ctx.fillStyle = MG_COLORS.arrowGrid;
+  ctx.fillRect(ARROW_FX, ARROW_FY, ARROW_FIELD_W, ARROW_FIELD_H);
+  ctx.strokeStyle = '#5a5a78';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(ARROW_FX - 1.5, ARROW_FY - 1.5, ARROW_FIELD_W + 3, ARROW_FIELD_H + 3);
+
+  // Stack
+  for (let y = 0; y < ARROW_ROWS; y++) {
+    for (let x = 0; x < ARROW_COLS; x++) {
+      if (a.grid[y][x]) {
+        ctx.fillStyle = '#5a6680';
+        ctx.fillRect(ARROW_FX + x * ARROW_CELL + 1, ARROW_FY + y * ARROW_CELL + 1, ARROW_CELL - 2, ARROW_CELL - 2);
+        ctx.strokeStyle = '#7a88a8';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(ARROW_FX + x * ARROW_CELL + 1, ARROW_FY + y * ARROW_CELL + 1, ARROW_CELL - 2, ARROW_CELL - 2);
+      }
+    }
+  }
+
+  // Active piece
+  const pieceColor = MG_COLORS.tetro[a.pieceName] || C.cyan;
+  ctx.fillStyle = pieceColor;
+  for (let y = 0; y < a.piece.length; y++) {
+    for (let x = 0; x < a.piece[0].length; x++) {
+      if (!a.piece[y][x]) continue;
+      const gx = a.pieceX + x, gy = a.pieceY + y;
+      if (gy < 0) continue;
+      ctx.fillRect(ARROW_FX + gx * ARROW_CELL + 1, ARROW_FY + gy * ARROW_CELL + 1, ARROW_CELL - 2, ARROW_CELL - 2);
+    }
+  }
+
+  // Piece letter label centered on the piece's bounding box.
+  if (a.pieceLetter) {
+    const pcx = ARROW_FX + (a.pieceX + a.piece[0].length / 2) * ARROW_CELL;
+    const pcy = ARROW_FY + (a.pieceY + a.piece.length / 2) * ARROW_CELL;
+    ctx.save();
+    ctx.fillStyle = '#0f0f14';
+    ctx.font = `700 ${Math.floor(ARROW_CELL * 0.9)}px "SF Mono", Consolas, Menlo, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(a.pieceLetter.toUpperCase(), pcx, pcy);
+    ctx.restore();
+  }
+
+  drawParticles();
+
+  // Header above the field — mode label and persistence indicator.
+  ctx.save();
+  ctx.fillStyle = '#96a0aa';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font = '500 20px "SF Mono", Consolas, Menlo, monospace';
+  ctx.fillText(modeLabel, VW / 2, 60);
+  ctx.font = '400 15px "SF Mono", Consolas, Menlo, monospace';
+  ctx.fillStyle = '#6a7480';
+  ctx.fillText(instructionLine, VW / 2, 92);
+  // Lines counter — to the right of the field, never inside it.
+  ctx.fillStyle = pieceColor;
+  ctx.font = '500 22px "SF Mono", Consolas, Menlo, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`LINES: ${a.cleared}`, ARROW_FX + ARROW_FIELD_W + 24, ARROW_FY + 12);
+  ctx.restore();
+
+  // Footer below the field — esc hint.
+  ctx.save();
+  ctx.fillStyle = '#6a7480';
+  ctx.font = '400 13px "SF Mono", Consolas, Menlo, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('PRESS ESC TO END THE ROUND', VW / 2, ARROW_FY + ARROW_FIELD_H + 18);
+  ctx.restore();
+
+  // Top-out announcement
+  if (a.toppedOut) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(15,15,20,0.7)';
+    ctx.fillRect(0, 0, VW, VH);
+    ctx.fillStyle = pieceColor;
+    ctx.font = '500 56px "SF Mono", Consolas, Menlo, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TOPPED OUT', VW / 2, VH / 2 - 20);
+    ctx.fillStyle = C.brightWhite;
+    ctx.font = '400 22px "SF Mono", Consolas, Menlo, monospace';
+    ctx.fillText(`${a.cleared} ${a.cleared === 1 ? 'line' : 'lines'} cleared`, VW / 2, VH / 2 + 30);
+    ctx.restore();
+  }
+}
+
+function arrowDraw() {
+  drawTetrisField('ARROW KEY TRAINER', '← → MOVE   ↓ DROP   ↑ ROTATE   ·   TYPE A LETTER ON A LETTERED PIECE TO AUTO-PLACE');
+}
+
+// V8 §3.14: home-row Tetris — reuses the engine, typing-only input.
+function homerowStart() {
+  // Reuse G.arrow as the engine state; the state value distinguishes input handling.
+  G.arrow = {
+    startTime: now(),
+    grid: Array.from({length: ARROW_ROWS}, () => Array(ARROW_COLS).fill(0)),
+    piece: null, pieceName: 'I', pieceX: 0, pieceY: 0,
+    pieceLetter: null,
+    fallAccum: 0,
+    fallInterval: 0.9,
+    cleared: 0,
+    rampStart: now(),
+    bumpStop: 0,
+    toppedOut: false,
+    autoBurst: null,
+  };
+  arrowNewPiece(true);
+  G.state = 'mini_homerow';
+}
+
+function homerowKey(ev) {
+  const a = G.arrow;
+  if (a.toppedOut) return;
+  if (a.bumpStop > now()) return;
+  // Arrow keys are disabled in this mode. Only typing the piece's home-row letter places it.
+  if (!ev.key || ev.key.length !== 1) return;
+  const ch = ev.key.toLowerCase();
+  if (a.pieceLetter && ch === a.pieceLetter) {
+    arrowAutoPlace();
+  }
+}
+
+function homerowUpdate() {
+  // Same engine tick.
+  arrowUpdate();
+}
+
+function homerowFinish() {
+  arrowFinish();
+}
+
+function homerowDraw() {
+  drawTetrisField('HOME-ROW TRAINER', 'TYPE THE LETTER ON THE PIECE — A S D F J K L ;');
+}
+
+// ============================================================================
+// END SCREEN (after End For Now)
+// ============================================================================
+function endDraw() {
+  ctx.save();
+  ctx.fillStyle = C.cyan;
+  ctx.font = '500 36px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Thanks for playing.', VW / 2, VH / 2 - 30);
+  ctx.fillStyle = C.blueGray;
+  ctx.font = '400 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText('Refresh the page to play again.', VW / 2, VH / 2 + 20);
+  ctx.restore();
+}
+
+// ============================================================================
+// ESCAPE HANDLING
+// ============================================================================
+function handleEscape() {
+  const s = G.state;
+  if (s === 'menu') return;
+  if (s === 'playing') {
+    G.pauseTime = now();
+    openMenu('pause');
+    return;
+  }
+  if (s === 'onboarding') {
+    startSession();
+    G.pauseTime = now();
+    openMenu('pause');
+    return;
+  }
+  if (s === 'mini_word' || s === 'mini_runner' || s === 'mini_arrow' || s === 'mini_homerow') {
+    // Finish bonus, then pause-menu
+    if (s === 'mini_word') wordFinish();
+    else if (s === 'mini_runner') runnerFinish();
+    else if (s === 'mini_arrow') arrowFinish();
+    else if (s === 'mini_homerow') homerowFinish();
+    G.pauseTime = now();
+    openMenu('pause');
+    return;
+  }
+  if (s === 'bonus_countdown') {
+    G.falling = [];
+    resumePlayAfterBonus();
+    G.pauseTime = now();
+    openMenu('pause');
+    return;
+  }
+}
+
+// ============================================================================
+// KEY DISPATCH
+// ============================================================================
+function onKeyDown(ev) {
+  Audio.unlock();
+  hideFocusBanner();
+
+  // V8 §3.4: stats popup eats Esc first.
+  if (statsPopup.classList.contains('show')) {
+    if (ev.key === 'Escape') {
+      closeStatsPopup();
+      ev.preventDefault();
+    }
+    return;
+  }
+
+  // V8 §3.15: hidden test hotkey now 5× (constant changed; label updated).
+  if (isModifierPressed(ev) && ev.shiftKey && ev.key && ev.key.toLowerCase() === 'f') {
+    G.testFast = !G.testFast;
+    setMilestone(G.testFast ? 'TEST 5×' : 'TEST off', 1.4);
+    ev.preventDefault();
+    return;
+  }
+
+  if (ev.key === 'Escape' && G.state !== 'menu') {
+    handleEscape();
+    ev.preventDefault();
+    return;
+  }
+
+  const s = G.state;
+  if (s === 'onboarding') { obKey(ev); }
+  else if (s === 'playing') {
+    if (ev.key && ev.key.length === 1 && /[a-z0-9]/i.test(ev.key) && !G.waitingHigh) {
+      handleType(ev.key.toLowerCase());
+    }
+  }
+  else if (s === 'menu') menuKey(ev);
+  else if (s === 'mini_word') wordKey(ev);
+  else if (s === 'mini_runner') runnerKey(ev);
+  else if (s === 'mini_arrow') arrowKey(ev);
+  else if (s === 'mini_homerow') homerowKey(ev);
+}
+
+window.addEventListener('keydown', onKeyDown);
+
+// ============================================================================
+// MAIN LOOP
+// ============================================================================
+function update() {
+  // V8 §3.4: pause everything while Stats popup is open.
+  if (statsPopup.classList.contains('show')) return;
+  const s = G.state;
+  if (s === 'playing') playUpdate();
+  else if (s === 'menu') menuUpdate();
+  else if (s === 'bonus_countdown') bcUpdate();
+  else if (s === 'mini_word') wordUpdate();
+  else if (s === 'mini_runner') runnerUpdate();
+  else if (s === 'mini_arrow') arrowUpdate();
+  else if (s === 'mini_homerow') homerowUpdate();
+}
+
+function draw() {
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, VW, VH);
+  const s = G.state;
+  if (s === 'onboarding') obDraw();
+  else if (s === 'playing') playDraw();
+  else if (s === 'menu') {
+    if (G.menuSrc === 'end') {
+      // No play screen behind a fresh end-menu — draw keyboard and HUD frozen
+      drawKeyboard();
+      drawParticles();
+    } else {
+      playDraw();
+    }
+    menuDraw();
+  }
+  else if (s === 'bonus_countdown') bcDraw();
+  else if (s === 'mini_word') wordDraw();
+  else if (s === 'mini_runner') runnerDraw();
+  else if (s === 'mini_arrow') arrowDraw();
+  else if (s === 'mini_homerow') homerowDraw();
+  else if (s === 'end') endDraw();
+}
+
+function loop() {
+  update();
+  draw();
+  lastFrameTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+// ============================================================================
+// TOGGLES (DOM)  —  V8 §3.1 unified typography, §3.4 split Memory control
+// ============================================================================
+const segSlow = document.getElementById('seg-slow');
+const segFast = document.getElementById('seg-fast');
+const memLabel = document.getElementById('mem-label');
+const memState = document.getElementById('mem-state');
+
+function updateToggleVisuals() {
+  segSlow.classList.toggle('on', G.slowFast === 'slow');
+  segFast.classList.toggle('on', G.slowFast === 'fast');
+  memState.textContent = G.memoryEnabled ? 'ON' : 'OFF';
+  memState.classList.toggle('on', G.memoryEnabled);
+}
+
+// V8 §3.1: clicking Slow/Fast segs independently sets that mode.
+segSlow.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (G.slowFast !== 'slow') {
+    G.slowFast = 'slow';
+    applyFloor();
+    if (G.memoryEnabled) persist();
+    updateToggleVisuals();
+  }
+});
+segFast.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (G.slowFast !== 'fast') {
+    G.slowFast = 'fast';
+    applyFloor();
+    if (G.memoryEnabled) persist();
+    updateToggleVisuals();
+  }
+});
+
+// V8 §3.4: ON/OFF segment still toggles memory.
+memState.addEventListener('click', (e) => {
+  e.stopPropagation();
+  G.memoryEnabled = !G.memoryEnabled;
+  if (G.memoryEnabled) {
+    persist();
+  } else {
+    Storage.wipe();
+    G.phase = 0;
+    G.rowTiers = { home: 0, top: 0, bottom: 0, num: 0 };
+    G.keyStats = {};
+    G.personalBestWPM = 0;
+    G.totalKeystrokes = 0;
+    G.sessionsPlayed = 0;
+    updatePool();
+  }
+  updateToggleVisuals();
+});
+
+// V8 §3.4: clicking the word "Memory" opens the Stats popup.
+memLabel.addEventListener('click', (e) => {
+  e.stopPropagation();
+  openStatsPopup();
+});
+
+// ============================================================================
+// STATS POPUP  —  V8 §3.4
+// ============================================================================
+const statsPopup = document.getElementById('stats-popup');
+const statLiveWpm = document.getElementById('stat-live-wpm');
+const statBestWpm = document.getElementById('stat-best-wpm');
+const statTotalKeys = document.getElementById('stat-total-keys');
+const statSessions = document.getElementById('stat-sessions');
+const statRow = document.getElementById('stat-row');
+const ROW_LABEL = ['Home', 'Home + Top', 'Home + Top + Bottom', 'All keys + Numbers'];
+
+function openStatsPopup() {
+  // Refresh values from current state.
+  statLiveWpm.textContent = Math.round(liveWPM());
+  statBestWpm.textContent = Math.round(G.personalBestWPM);
+  statTotalKeys.textContent = G.totalKeystrokes;
+  statSessions.textContent = G.sessionsPlayed;
+  statRow.textContent = ROW_LABEL[G.phase] || 'Home';
+  statsPopup.classList.add('show');
+  statsPopup.setAttribute('aria-hidden', 'false');
+  // Pause active session by recording the wall time we opened.
+  if (G.statsOpenedAt === 0) G.statsOpenedAt = now();
+}
+
+function closeStatsPopup() {
+  if (!statsPopup.classList.contains('show')) return;
+  statsPopup.classList.remove('show');
+  statsPopup.setAttribute('aria-hidden', 'true');
+  // Resume active session: subtract paused interval from sessionStart.
+  if (G.statsOpenedAt > 0 && G.sessionStart) {
+    G.sessionStart += (now() - G.statsOpenedAt);
+    G.bonusLastTick = now();
+  }
+  G.statsOpenedAt = 0;
+}
+
+statsPopup.addEventListener('click', closeStatsPopup);
+
+// ============================================================================
+// FOCUS BANNER  —  iframe deployment helper
+// ============================================================================
+const focusBanner = document.getElementById('focus-banner');
+function hideFocusBanner() {
+  focusBanner.classList.add('hidden');
+  // Best-effort: grab focus so the iframe receives keypresses.
+  try { window.focus(); } catch(e) {}
+}
+focusBanner.addEventListener('click', hideFocusBanner);
+window.addEventListener('keydown', hideFocusBanner, { once: true });
+
+// ============================================================================
+// MOBILE DETECTION
+// ============================================================================
+const mobileRec = document.getElementById('mobile-rec');
+document.getElementById('mobile-continue').addEventListener('click', () => {
+  mobileRec.classList.remove('show');
+});
+if (isTouch() && window.innerWidth < 900) {
+  mobileRec.classList.add('show');
+}
+
+// ============================================================================
+// SERVICE WORKER (PWA, best-effort via Blob URL)
+// ============================================================================
+(function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const swCode = [
+      "self.addEventListener('install', e => { self.skipWaiting(); });",
+      "self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });",
+      "self.addEventListener('fetch', e => {",
+      "  if (e.request.method !== 'GET') return;",
+      "  e.respondWith(",
+      "    caches.open('kc-v5').then(c =>",
+      "      c.match(e.request).then(r => r || fetch(e.request).then(res => {",
+      "        if (res.ok) c.put(e.request, res.clone()); return res;",
+      "      }).catch(() => c.match(e.request)))",
+      "    )",
+      "  );",
+      "});",
+    ].join('\n');
+    const blob = new Blob([swCode], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(url).catch(() => {});
+  } catch(e) {}
+})();
+
+// ============================================================================
+// MANIFEST (data URL injection)
+// ============================================================================
+(function injectManifest() {
+  const manifest = {
+    name: 'Keyboard Commander',
+    short_name: 'KeyCommander',
+    description: 'A touch-typing trainer that meets you where you are.',
+    start_url: '.',
+    display: 'standalone',
+    background_color: '#0f0f14',
+    theme_color: '#0f0f14',
+    icons: [],
+  };
+  const json = JSON.stringify(manifest);
+  const url = 'data:application/manifest+json;base64,' + btoa(json);
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = url;
+  document.head.appendChild(link);
+})();
+
+// ============================================================================
+// BOOT
+// ============================================================================
+function boot() {
+  Audio.init();
+  // Load persisted state
+  const saved = Storage.load();
+  G.memoryEnabled = saved.memoryEnabled;
+  G.slowFast = saved.slowFast;
+  if (G.memoryEnabled) {
+    G.phase = saved.phase;
+    G.rowTiers = saved.rowTiers;
+    G.keyStats = saved.keyStats;
+    G.personalBestWPM = saved.personalBestWPM;
+    G.totalKeystrokes = saved.totalKeystrokes;
+    G.sessionsPlayed = saved.sessionsPlayed;
+  }
+  applyFloor();
+  updatePool();
+  updateToggleVisuals();
+
+  // Ensure first user click/keypress unlocks audio
+  window.addEventListener('click', Audio.unlock, { once: true });
+  window.addEventListener('keydown', Audio.unlock, { once: true });
+
+  G.state = 'onboarding';
+  G.obStep = 0;
+  lastFrameTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+boot();
+
+})();
+</script>
+</body>
+</html>
