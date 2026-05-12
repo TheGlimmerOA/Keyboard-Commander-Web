@@ -36,12 +36,12 @@
     image-rendering: auto;
     box-shadow: 0 0 60px rgba(100,200,255,0.06);
   }
-  /* V8 §3.1: toggles pulled in from corners, unified large monospace typography */
+  /* V9 §3.4: toggles consolidated into a single right-side cluster — Speed (with live tier) + Memory. */
   #toggle-bar {
     position: absolute;
     top: 18px;
     left: 0; right: 0;
-    display: flex; justify-content: space-between;
+    display: flex; justify-content: flex-end; align-items: center; gap: 28px;
     padding: 0 6%;
     pointer-events: none;
     z-index: 5;
@@ -60,51 +60,150 @@
     text-transform: uppercase;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
   }
   .seg { display: inline-block; padding: 0 4px; transition: color 0.12s; }
   .seg.on { color: #dcdcdc; }
   .seg:hover { color: #64c8ff; }
   #mem-label { transition: color 0.12s; cursor: pointer; }
   #mem-label:hover { color: #64c8ff; }
-  /* V8 §3.4: stats popup */
+  /* V9 §3.4: live tier strip inside the speed control. */
+  #tier-strip {
+    display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle;
+  }
+  #tier-strip .tier-cell {
+    width: 14px; height: 6px; border-radius: 2px; background: #373a41; transition: background 0.12s;
+  }
+  #tier-strip .tier-cell.on { background: #64c8ff; }
+  /* V9 §3.3: unified menu/dialog style — large monospace, subtle color, visible outline, responsive buttons. */
+  .v9-dialog-button {
+    background: transparent;
+    border: 1px solid #96a0aa;
+    color: #96a0aa;
+    font-family: "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace;
+    font-size: 18px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 10px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+  .v9-dialog-button:hover {
+    color: #64c8ff;
+    border-color: #64c8ff;
+    background: rgba(100,200,255,0.05);
+  }
+  .v9-dialog-button:active {
+    background: rgba(100,200,255,0.12);
+  }
+  /* V9 §3.5: Stats celebration screen — no heading, hero count-up, clickable row-ladder, mini-game collection. */
   #stats-popup {
     position: fixed; inset: 0; z-index: 20;
     display: none; align-items: center; justify-content: center;
-    background: rgba(15,15,20,0.78);
+    background: rgba(15,15,20,0.82);
   }
   #stats-popup.show { display: flex; }
   #stats-card {
     background: #161821;
     border: 1px solid #64c8ff;
-    border-radius: 8px;
-    padding: 36px 48px;
-    min-width: 420px;
-    font-family: inherit;
+    border-radius: 10px;
+    padding: 40px 52px 32px;
+    min-width: 520px;
+    max-width: 640px;
+    font-family: "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace;
   }
-  #stats-card h2 {
-    color: #64c8ff;
-    font-size: 24px;
-    font-weight: 500;
+  /* Hero count-up — total correct keystrokes, comma-separated. */
+  #stats-hero {
     text-align: center;
-    margin-bottom: 24px;
+    color: #64c8ff;
+    font-size: 76px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  #stats-hero-label {
+    text-align: center;
+    color: #96a0aa;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 30px;
+  }
+  /* Row ladder — vertical, clickable. */
+  #stats-ladder {
+    display: flex; flex-direction: column-reverse; /* numbers at top, home at bottom */
+    gap: 6px;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .stats-rung {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px;
+    border: 1px solid #2a2c36;
+    border-radius: 6px;
+    background: transparent;
+    color: #6a7480;
+    font-size: 15px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+    width: 100%;
+    font-family: inherit;
+    text-align: left;
   }
-  .stats-row {
-    display: flex; justify-content: space-between;
-    font-size: 18px;
-    padding: 8px 0;
-    border-bottom: 1px solid #2a2c36;
+  .stats-rung:hover {
+    border-color: #64c8ff;
+    color: #dcdcdc;
+    background: rgba(100,200,255,0.05);
   }
-  .stats-row:last-child { border-bottom: none; }
-  .stats-row span:first-child { color: #96a0aa; }
-  .stats-row span:last-child { color: #dcdcdc; font-weight: 500; }
+  .stats-rung.unlocked { color: #dcdcdc; border-color: #4a5060; }
+  .stats-rung.enabled { color: #64c8ff; border-color: #64c8ff; background: rgba(100,200,255,0.07); }
+  .stats-rung .rung-state {
+    font-size: 12px;
+    color: #6a7480;
+    letter-spacing: 0.08em;
+  }
+  .stats-rung.enabled .rung-state { color: #64c8ff; }
+  /* Mini-game collection — row of cards. */
+  #stats-mini-label {
+    color: #96a0aa;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  #stats-mini-collection {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .stats-mini-card {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 0;
+    border: 1px solid #2a2c36;
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: #96a0aa;
+  }
+  .stats-mini-card .mini-name {
+    font-size: 13px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: #dcdcdc;
+    margin-bottom: 4px;
+  }
+  .stats-mini-card .mini-stat {
+    font-size: 12px;
+    color: #6a7480;
+  }
   #stats-close-hint {
     text-align: center;
     color: #6a7480;
     font-size: 13px;
-    margin-top: 20px;
+    letter-spacing: 0.06em;
   }
   /* V8: click-to-focus banner for iframe deployment */
   #focus-banner {
@@ -144,8 +243,9 @@
   <div id="stage">
     <canvas id="game" width="1280" height="800"></canvas>
     <div id="toggle-bar">
-      <div class="toggle" id="speed-toggle" aria-label="Speed toggle">
+      <div class="toggle" id="speed-toggle" aria-label="Speed toggle with live tier indicator">
         <span class="seg on" id="seg-slow">Slow</span><span class="seg" id="seg-fast">Fast</span>
+        <span id="tier-strip" aria-label="Current speed tier"></span>
       </div>
       <div class="toggle" id="memory-toggle" aria-label="Memory and Stats">
         <span id="mem-label">Memory</span>:&nbsp;<span class="seg on" id="mem-state">ON</span>
@@ -154,13 +254,13 @@
   </div>
   <div id="stats-popup" aria-hidden="true">
     <div id="stats-card">
-      <h2>Stats</h2>
-      <div class="stats-row"><span>Live WPM</span><span id="stat-live-wpm">0</span></div>
-      <div class="stats-row"><span>Best WPM</span><span id="stat-best-wpm">0</span></div>
-      <div class="stats-row"><span>Total keystrokes</span><span id="stat-total-keys">0</span></div>
-      <div class="stats-row"><span>Sessions played</span><span id="stat-sessions">0</span></div>
-      <div class="stats-row"><span>Row unlocked</span><span id="stat-row">Home</span></div>
-      <div id="stats-close-hint">Click anywhere or press Esc to close</div>
+      <!-- V9 §3.5: no heading; the popup IS the frame. -->
+      <div id="stats-hero">0</div>
+      <div id="stats-hero-label">Letters typed, all time</div>
+      <div id="stats-ladder"></div>
+      <div id="stats-mini-label">Games played</div>
+      <div id="stats-mini-collection"></div>
+      <div id="stats-close-hint">Click anywhere outside, or press Esc, to close</div>
     </div>
   </div>
   <div id="focus-banner">
@@ -169,8 +269,8 @@
   </div>
   <div id="mobile-rec">
     <h2>Best on a real keyboard</h2>
-    <p>Keyboard Commander teaches touch-typing, which works best on a desktop with a physical keyboard. On a phone you can still play, but you won't get the finger-placement training the game is built for.</p>
-    <button id="mobile-continue">Play anyway</button>
+    <p>Keyboard Commander teaches touch-typing, which works best on a desktop with a physical keyboard. On a phone you can still play one of the mini-games with touch controls.</p>
+    <button id="mobile-continue">Play a game</button>
   </div>
 
 <script>
@@ -207,10 +307,10 @@ const NUMS = ['1','2','3','4','5','6','7','8','9','0'];
 const ROW_NAMES = ['home', 'top', 'bottom', 'number'];
 const ROW_KEYS = ['home', 'top', 'bottom', 'num'];
 
-// Word lists (V4 §7)
+// Word lists (V4 §7; V9 §3.7 drops obscure entries jak/shad/flak in favor of common short words)
 const HOME_ROW_WORDS = [
-  'as','ad','ash','ask','lad','fad','sad','dad','had','has','gas','jak',
-  'dash','gash','hash','lash','sash','hall','fall','gall','shad','flak',
+  'as','ad','ash','ask','lad','fad','sad','dad','had','has','gas',
+  'dash','gash','hash','lash','sash','hall','fall','gall','add','all','half',
 ];
 const TOP_ROW_WORDS = [
   'the','this','that','they','were','with','your','here',
@@ -255,6 +355,13 @@ const EXPANSION_HOLD = 3.0;
 const BONUS_INTERVAL = 45.0;
 const BONUS_DURATION = 15.0;
 const BONUS_COUNTDOWN = 3.0;
+// V9 §3.7: Word Practice is a single 45s continuous-stream round.
+const WORD_PRACTICE_DURATION = 45.0;
+// V9 §3.9: universal 3-2-1 countdown before every mini-game starts.
+const COUNTDOWN_DURATION = 3.0;
+// V9 §3.8: the auto-place drop animation runs at 50% of V8's instant snap.
+// V8 snapped instantly; V9 animates the descent over this many seconds so the player can see it.
+const TETRIS_AUTOPLACE_DROP_DURATION = 0.50;
 
 // Field density
 const MAX_CONCURRENT_LETTERS = 3;
@@ -290,20 +397,22 @@ const FINGER_NAMES = {
 };
 const FINGER_KEYS = ['a','s','d','f','j','k','l'];
 const FINGER_CALLOUT_INTERVAL = 30.0;
+// V9 §3.11: in a player's first session, fire the first wave at 15s instead of 30s.
+const FINGER_CALLOUT_FIRST_SESSION_FIRST = 15.0;
 const FINGER_CALLOUT_BURST = 12;
 
-// Storage namespace — V8 schema bump (adds totalKeystrokes, sessionsPlayed)
-const LS_KEY = 'keyboardCommanderV8';
+// Storage namespace — V9 schema bump (adds enabledRows override, miniGamePlays, miniGameBests)
+const LS_KEY = 'keyboardCommanderV9';
+const LS_KEY_LEGACY_V8 = 'keyboardCommanderV8';
 
-// Mini-game IDs  (V8 §3.14: home-row Tetris added)
-const MINI = { WORD: 'word', RUNNER: 'runner', ARROW: 'arrow', HOMEROW: 'homerow' };
+// Mini-game IDs  (V9 §3.8: the two Tetris games are merged into one unified TETRIS.)
+const MINI = { WORD: 'word', RUNNER: 'runner', TETRIS: 'tetris' };
 
-// V7 §3.3 / V8 §3.14: intro card text per mini-game.
+// V7 §3.3 / V9 §3.8: intro card text per mini-game. V9 unifies the Tetris card.
 const MINI_INTROS = {
-  word:    { title: 'Word Practice',         lines: ['Type the word you see.', 'Press space when you finish each word.'] },
-  runner:  { title: 'The Runner',            lines: ['Press the space bar to make your fox jump.', 'You can also press the letter on the obstacle to blow it up before the fox reaches it.'] },
-  arrow:   { title: 'Arrow Key Trainer',     lines: ['Put your right hand on the arrow keys.', 'Some pieces have a letter — type it to auto-place the piece.'] },
-  homerow: { title: 'Home-Row Trainer',      lines: ['Every piece carries a home-row letter.', 'Type the letter on the piece and it places itself.'] },
+  word:    { title: 'Word Practice',  lines: ['Type the word you see — letter by letter.', 'Words appear one after another for 45 seconds.'] },
+  runner:  { title: 'The Runner',     lines: ['The fox is chasing falling apples.', 'Press SPACE to jump or type the letter to keep an apple away.', 'Press SPACE or click to begin.'] },
+  tetris:  { title: 'Tetris',         lines: ['Use the ARROW KEYS to move and rotate the piece.', 'Some pieces show a letter — type it for an auto-perfect place.'] },
 };
 const INTRO_DURATION = 3.0; // V7 §3.3: 2-3 seconds before the round starts
 
@@ -335,8 +444,18 @@ const MG_COLORS = {
 // ============================================================================
 const Storage = (() => {
   function readRaw() {
-    try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
-    catch (e) { return {}; }
+    try {
+      const v9 = localStorage.getItem(LS_KEY);
+      if (v9) return JSON.parse(v9);
+      // V9 migration: read V8 payload once, write it under the V9 key.
+      const v8 = localStorage.getItem(LS_KEY_LEGACY_V8);
+      if (v8) {
+        const parsed = JSON.parse(v8);
+        try { localStorage.setItem(LS_KEY, v8); } catch(e){}
+        return parsed;
+      }
+      return {};
+    } catch (e) { return {}; }
   }
   function writeRaw(data) {
     try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e){}
@@ -353,6 +472,12 @@ const Storage = (() => {
       // V8 §3.4: longitudinal stats
       totalKeystrokes: typeof raw.totalKeystrokes === 'number' ? raw.totalKeystrokes : 0,
       sessionsPlayed: typeof raw.sessionsPlayed === 'number' ? raw.sessionsPlayed : 0,
+      // V9 §3.5: ladder override — which rows the player has manually toggled.
+      // null entries mean "follow auto-progression"; explicit true/false overrides.
+      enabledRows: raw.enabledRows || { home: null, top: null, bottom: null, num: null },
+      // V9 §3.5: expandable mini-game collection — per-game plays and bests.
+      miniPlays: raw.miniPlays || { word: 0, runner: 0, tetris: 0, main: 0 },
+      miniBest: raw.miniBest || { word: 0, runner: 0, tetris: 0 }, // word=count, runner=apples kept away, tetris=lines
     };
   }
   function save(state) {
@@ -369,6 +494,9 @@ const Storage = (() => {
       personalBestWPM: state.personalBestWPM,
       totalKeystrokes: state.totalKeystrokes,
       sessionsPlayed: state.sessionsPlayed,
+      enabledRows: state.enabledRows,
+      miniPlays: state.miniPlays,
+      miniBest: state.miniBest,
     });
   }
   function wipe() {
@@ -431,7 +559,75 @@ const Audio = (() => {
     setTimeout(() => beep(659, 0.16, 0.06), 90);
     setTimeout(() => beep(784, 0.20, 0.06), 180);
   }
-  return { init, unlock, play, beep, chime };
+  // V9 §3.7: soft cue on each correct letter in Word Practice — encouraging, never sharp.
+  function softCue() {
+    if (!ctx) return;
+    try {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = 880;
+      g.gain.value = 0.025;
+      osc.connect(g).connect(ctx.destination);
+      osc.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.06);
+      osc.stop(ctx.currentTime + 0.06);
+    } catch(e) {}
+  }
+  // V9 §3.7: word-completion chime — slightly brighter than the per-letter cue.
+  function wordComplete() {
+    beep(784, 0.10, 0.05);
+    setTimeout(() => beep(988, 0.14, 0.05), 80);
+  }
+  // V9 §3.6: crunch sound when the fox catches an apple — quick noise burst with low-pass feel.
+  function crunch() {
+    if (!ctx) return;
+    try {
+      const bufLen = Math.floor(ctx.sampleRate * 0.22);
+      const noiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < bufLen; i++) {
+        // brown-ish noise with a quick decay envelope
+        const t = i / bufLen;
+        const env = Math.pow(1 - t, 1.6);
+        data[i] = (Math.random() * 2 - 1) * env * 0.7;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuf;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 1200;
+      const g = ctx.createGain();
+      g.gain.value = 0.18;
+      src.connect(lp).connect(g).connect(ctx.destination);
+      src.start();
+      // Two quick pulses to suggest a bite
+      setTimeout(() => {
+        try {
+          const src2 = ctx.createBufferSource();
+          src2.buffer = noiseBuf;
+          const lp2 = ctx.createBiquadFilter();
+          lp2.type = 'lowpass';
+          lp2.frequency.value = 900;
+          const g2 = ctx.createGain();
+          g2.gain.value = 0.13;
+          src2.connect(lp2).connect(g2).connect(ctx.destination);
+          src2.start();
+        } catch(e){}
+      }, 60);
+    } catch(e) {}
+  }
+  // V9 §3.8: Tetris row-clear fanfare — three ascending pulses synced with the double-blink + explode.
+  function tetrisClear() {
+    beep(523, 0.10, 0.05);
+    setTimeout(() => beep(659, 0.10, 0.05), 110);
+    setTimeout(() => beep(880, 0.18, 0.07), 230);
+  }
+  // V9 §3.9: countdown tick — short pulse for "3", "2", "1", brighter on "GO".
+  function countdownTick(isGo) {
+    beep(isGo ? 880 : 660, isGo ? 0.16 : 0.08, isGo ? 0.07 : 0.04);
+  }
+  return { init, unlock, play, beep, chime, softCue, wordComplete, crunch, tetrisClear, countdownTick };
 })();
 
 // ============================================================================
@@ -520,6 +716,17 @@ const G = {
   // V8 §3.4: longitudinal Stats popup data
   totalKeystrokes: 0,
   sessionsPlayed: 0,
+  // V9 §3.5: ladder override — null = follow auto-progression; true/false overrides.
+  enabledRows: { home: null, top: null, bottom: null, num: null },
+  // V9 §3.5: mini-game collection.
+  miniPlays: { word: 0, runner: 0, tetris: 0, main: 0 },
+  miniBest: { word: 0, runner: 0, tetris: 0 },
+
+  // V9 §3.9: countdown state (3-2-1 before every mini-game).
+  countdown: null, // { startTime, miniKind, waitingForTap }
+
+  // V9 §3.12: mobile mode — true on phones/tablets without keyboard; locks to tetris-only.
+  isMobile: false,
 
   // V8 §3.6: finger callout wave state
   calloutKey: null,            // key char currently being drilled, or null
@@ -530,7 +737,7 @@ const G = {
   statsOpenedAt: 0,
 
   // Session
-  state: 'onboarding', // onboarding | playing | menu | bonus_countdown | mini_word | mini_runner | mini_arrow | mini_homerow | end
+  state: 'onboarding', // onboarding | playing | menu | bonus_countdown | mini_word | mini_runner | mini_tetris | end
   obStep: 0,
   sessionStart: 0,
   correctChars: 0,
@@ -605,20 +812,47 @@ const G = {
 // ============================================================================
 // DERIVED HELPERS
 // ============================================================================
+// V9 §3.5: rowEnabled() consults the user override first, then falls back to phase auto-progression.
+// Home is always enabled (the player must always have something to play).
+function rowEnabled(key) {
+  if (key === 'home') return true;
+  const override = G.enabledRows[key];
+  if (override === true) return true;
+  if (override === false) return false;
+  // null → auto-progression
+  if (key === 'top')    return G.phase >= 1;
+  if (key === 'bottom') return G.phase >= 2;
+  if (key === 'num')    return G.phase >= 3;
+  return false;
+}
+
+// V9 §3.5: rowUnlocked() reflects auto-progression alone (whether the rung is "lit" on the ladder).
+function rowUnlocked(key) {
+  if (key === 'home')   return true;
+  if (key === 'top')    return G.phase >= 1;
+  if (key === 'bottom') return G.phase >= 2;
+  if (key === 'num')    return G.phase >= 3;
+  return false;
+}
+
 function unlockedSet() {
-  const s = new Set(HOME);
-  if (G.phase >= 1) TOP.forEach(c => s.add(c));
-  if (G.phase >= 2) BOTTOM.forEach(c => s.add(c));
-  if (G.phase >= 3) NUMS.forEach(c => s.add(c));
+  const s = new Set();
+  if (rowEnabled('home'))   HOME.forEach(c => s.add(c));
+  if (rowEnabled('top'))    TOP.forEach(c => s.add(c));
+  if (rowEnabled('bottom')) BOTTOM.forEach(c => s.add(c));
+  if (rowEnabled('num'))    NUMS.forEach(c => s.add(c));
+  // Always guarantee home in the set (defensive).
+  if (s.size === 0) HOME.forEach(c => s.add(c));
   return s;
 }
 
 function updatePool() {
-  const p = G.phase;
-  if (p === 0) G.poolL = HOME.slice();
-  else if (p === 1) G.poolL = HOME.concat(TOP);
-  else if (p === 2) G.poolL = HOME.concat(TOP, BOTTOM);
-  else G.poolL = HOME.concat(TOP, BOTTOM, NUMS);
+  const arr = [];
+  if (rowEnabled('home'))   arr.push(...HOME);
+  if (rowEnabled('top'))    arr.push(...TOP);
+  if (rowEnabled('bottom')) arr.push(...BOTTOM);
+  if (rowEnabled('num'))    arr.push(...NUMS);
+  G.poolL = arr.length ? arr : HOME.slice();
 }
 
 function currentSpeedKey() {
@@ -665,6 +899,9 @@ function persist() {
     personalBestWPM: G.personalBestWPM,
     totalKeystrokes: G.totalKeystrokes,
     sessionsPlayed: G.sessionsPlayed,
+    enabledRows: G.enabledRows,
+    miniPlays: G.miniPlays,
+    miniBest: G.miniBest,
   });
 }
 
@@ -983,6 +1220,7 @@ function checkProgress() {
       if (G.correctChars > 0) setMilestone(`Stepping up — ${name}!`);
       G.accWindow = G.accWindow.slice(-10);
       persist();
+      if (typeof updateToggleVisuals === 'function') updateToggleVisuals();
       return;
     }
   }
@@ -1024,6 +1262,7 @@ function triggerExpansion() {
   G.rowTiers[newKey] = Math.max(G.rowTiers[newKey], floorTier());
   G.accWindow = [];
   persist();
+  if (typeof updateToggleVisuals === 'function') updateToggleVisuals();
 }
 
 // ============================================================================
@@ -1062,25 +1301,7 @@ function drawHUD() {
   ctx.fillStyle = C.blueGray;
   ctx.fillText('LETTERS', VW / 2, HUD_TOP + 74);
 
-  // Speed indicator (right side, below Memory toggle)
-  const key = currentSpeedKey();
-  const tier = G.rowTiers[key];
-  const tierName = SPEED_TIERS[tier].name;
-  ctx.font = '400 14px "SF Mono", Consolas, Menlo, monospace';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = C.blueGray;
-  ctx.fillText('SPEED: ' + tierName.toUpperCase(), VW - 90, HUD_TOP + 6);
-
-  const segW = 14, segH = 6, segGap = 4;
-  const barW = TIER_COUNT * segW + (TIER_COUNT - 1) * segGap;
-  const bx = VW - barW - 90;
-  const by = HUD_TOP + 26;
-  for (let i = 0; i < TIER_COUNT; i++) {
-    ctx.fillStyle = i <= tier ? C.cyan : C.dimKey;
-    roundRect(bx + i * (segW + segGap), by, segW, segH, 2);
-    ctx.fill();
-  }
+  // V9 §3.4: in-canvas SPEED block removed — the tier strip lives in the DOM toggle bar now.
 
   // Time remaining (left side)
   if (G.sessionStart) {
@@ -1127,6 +1348,8 @@ function checkPersonalBest() {
   // V8 §3.4: count this session toward total sessions played.
   if (G.charsThisSession > 0) {
     G.sessionsPlayed += 1;
+    // V9 §3.5: count main-game plays for the mini-game collection.
+    G.miniPlays.main = (G.miniPlays.main | 0) + 1;
   }
   if (wpm > G.personalBestWPM && wpm >= 5) {
     G.personalBestWPM = wpm;
@@ -1218,8 +1441,11 @@ function startSession() {
   G.bonusLastTick = now();
   G.encNext = ENC_INTERVAL;
   G.startWall = now();
-  // V8 §3.6: first finger-callout wave fires after FINGER_CALLOUT_INTERVAL of active play.
-  G.calloutNextAt = FINGER_CALLOUT_INTERVAL;
+  // V8 §3.6 + V9 §3.11: first wave at 15s in the player's very first session,
+  // 30s after that and on every subsequent session.
+  G.calloutNextAt = (G.sessionsPlayed === 0)
+    ? FINGER_CALLOUT_FIRST_SESSION_FIRST
+    : FINGER_CALLOUT_INTERVAL;
   G.calloutKey = null;
   G.calloutLettersLeft = 0;
 }
@@ -1276,6 +1502,7 @@ function playUpdate() {
     G.pendingPhase = null;
     updatePool();
     persist();
+    if (typeof updateToggleVisuals === 'function') updateToggleVisuals();
   }
 
   // Bonus active-play accumulator
@@ -1451,27 +1678,72 @@ function startBonusCountdown() {
   G.bcStart = now();
   G.bonusAccum = 0;
   G.state = 'bonus_countdown';
-  // V8 §3.14: bonus rotation now includes the home-row Tetris trainer.
-  const choices = [MINI.WORD, MINI.RUNNER, MINI.ARROW, MINI.HOMEROW];
+  // V9 §3.8: bonus rotation now has three mini-games (Tetris unified).
+  const choices = [MINI.WORD, MINI.RUNNER, MINI.TETRIS];
   G.bonusKind = choices[Math.floor(Math.random() * choices.length)];
+  // V9 §3.9: Runner waits for tap before countdown; others auto-start countdown after the intro card.
+  G.countdown = {
+    phase: 'intro',            // 'intro' → 'count' → 'go' (then mini-game)
+    miniKind: G.bonusKind,
+    introStart: now(),
+    countStart: 0,
+    waitingForTap: G.bonusKind === MINI.RUNNER,
+    lastTickAt: -1,            // which whole-second tick has played so far
+  };
   Audio.chime();
 }
 
 function bcUpdate() {
   const t = now();
-  const elapsed = t - G.bcStart;
-  if (elapsed >= INTRO_DURATION) {
-    G.falling = [];
-    startBonus(G.bonusKind);
+  const cd = G.countdown;
+  if (!cd) { return; }
+  if (cd.phase === 'intro') {
+    // V9 §3.9: Tetris and Word auto-advance after a short read (INTRO_DURATION); Runner waits for a tap.
+    if (!cd.waitingForTap && t - cd.introStart >= INTRO_DURATION) {
+      cd.phase = 'count';
+      cd.countStart = t;
+      cd.lastTickAt = -1;
+      G.falling = [];
+    }
+  } else if (cd.phase === 'count') {
+    const elapsed = t - cd.countStart;
+    // Audio ticks: 3, 2, 1, GO
+    const tickIndex = Math.floor(elapsed);
+    if (tickIndex !== cd.lastTickAt && tickIndex >= 0 && tickIndex <= COUNTDOWN_DURATION) {
+      cd.lastTickAt = tickIndex;
+      Audio.countdownTick(tickIndex >= COUNTDOWN_DURATION);
+    }
+    if (elapsed >= COUNTDOWN_DURATION + 0.35) {
+      // GO! launch the mini-game.
+      const kind = cd.miniKind;
+      G.countdown = null;
+      G.falling = [];
+      startBonus(kind);
+      return;
+    }
   }
   updateParticles();
 }
 
+// V9 §3.9: Runner intro accepts space-or-click to advance into the countdown.
+function bcAdvanceFromTap() {
+  const cd = G.countdown;
+  if (!cd) return;
+  if (cd.phase === 'intro' && cd.waitingForTap) {
+    cd.phase = 'count';
+    cd.countStart = now();
+    cd.lastTickAt = -1;
+    cd.waitingForTap = false;
+    G.falling = [];
+  }
+}
+
 function bcDraw() {
   drawKeyboard();
-  // Fade leftover falling letters
-  const elapsed = now() - G.bcStart;
-  const fade = Math.max(0, 1 - elapsed / INTRO_DURATION);
+  const cd = G.countdown;
+  // Fade leftover falling letters during intro.
+  const introElapsed = cd ? (now() - cd.introStart) : 0;
+  const fade = Math.max(0, 1 - introElapsed / INTRO_DURATION);
   ctx.save();
   ctx.globalAlpha = fade * 0.5;
   ctx.font = '500 36px -apple-system, BlinkMacSystemFont, "Segoe UI", monospace';
@@ -1484,56 +1756,101 @@ function bcDraw() {
   ctx.restore();
   drawParticles();
 
-  // V7 §3.3: intro card — title, plain-language instructions, and a small countdown.
-  const intro = MINI_INTROS[G.bonusKind] || MINI_INTROS.word;
-  const cardW = Math.min(820, VW * 0.7);
-  const cardH = 280;
-  const cardX = (VW - cardW) / 2;
-  const cardY = KB.gameTop + (KB.gameBot - KB.gameTop) / 2 - cardH / 2 - 30;
+  // V9 §3.3 + §3.9: unified menu-style intro card with a clear footer indicating tap-to-start or auto-start.
+  if (cd && cd.phase === 'intro') {
+    const intro = MINI_INTROS[G.bonusKind] || MINI_INTROS.word;
+    const cardW = Math.min(840, VW * 0.7);
+    const cardH = 320;
+    const cardX = (VW - cardW) / 2;
+    const cardY = KB.gameTop + (KB.gameBot - KB.gameTop) / 2 - cardH / 2 - 30;
 
-  ctx.save();
-  ctx.globalAlpha = 0.92;
-  ctx.fillStyle = '#161821';
-  roundRect(cardX, cardY, cardW, cardH, 16); ctx.fill();
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = C.cyan;
-  ctx.lineWidth = 2;
-  roundRect(cardX, cardY, cardW, cardH, 16); ctx.stroke();
+    ctx.save();
+    ctx.globalAlpha = 0.94;
+    ctx.fillStyle = '#161821';
+    roundRect(cardX, cardY, cardW, cardH, 16); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = C.cyan;
+    ctx.lineWidth = 2;
+    roundRect(cardX, cardY, cardW, cardH, 16); ctx.stroke();
 
-  ctx.fillStyle = C.cyan;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.font = '600 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillText(intro.title, VW / 2, cardY + 28);
+    ctx.fillStyle = C.cyan;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font = '500 40px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+    ctx.fillText(intro.title.toUpperCase(), VW / 2, cardY + 32);
 
-  ctx.fillStyle = C.offWhite;
-  ctx.font = '400 22px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  for (let i = 0; i < intro.lines.length; i++) {
-    ctx.fillText(intro.lines[i], VW / 2, cardY + 92 + i * 36);
+    ctx.fillStyle = C.offWhite;
+    ctx.font = '400 22px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+    for (let i = 0; i < intro.lines.length; i++) {
+      ctx.fillText(intro.lines[i], VW / 2, cardY + 100 + i * 36);
+    }
+
+    ctx.fillStyle = C.blueGray;
+    ctx.font = '400 16px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+    if (cd.waitingForTap) {
+      // Pulse the prompt so the player sees it's interactive.
+      const pulse = 0.65 + 0.35 * Math.abs(Math.sin(now() * 2.4));
+      ctx.globalAlpha = pulse;
+      ctx.fillText('Press SPACE or click to begin', VW / 2, cardY + cardH - 48);
+      ctx.globalAlpha = 1;
+    } else {
+      const remaining = Math.max(0, INTRO_DURATION - introElapsed);
+      ctx.fillText(`Starting in ${Math.ceil(remaining)}...`, VW / 2, cardY + cardH - 48);
+    }
+    ctx.restore();
   }
 
-  ctx.fillStyle = C.blueGray;
-  ctx.font = '400 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  const remaining = Math.max(0, INTRO_DURATION - elapsed);
-  ctx.fillText(`Starting in ${Math.ceil(remaining)}...`, VW / 2, cardY + cardH - 42);
-  ctx.restore();
+  // V9 §3.9: 3-2-1 countdown overlay phase — large hero number, then "GO!"
+  if (cd && cd.phase === 'count') {
+    const elapsed = now() - cd.countStart;
+    // numbers: 3 at t∈[0,1), 2 at [1,2), 1 at [2,3), GO at [3, 3.35)
+    let label, tNorm;
+    if (elapsed < 1) { label = '3'; tNorm = elapsed; }
+    else if (elapsed < 2) { label = '2'; tNorm = elapsed - 1; }
+    else if (elapsed < 3) { label = '1'; tNorm = elapsed - 2; }
+    else { label = 'GO!'; tNorm = (elapsed - 3) / 0.35; }
+    // Dim backdrop
+    ctx.save();
+    ctx.fillStyle = 'rgba(15,15,20,0.75)';
+    ctx.fillRect(0, 0, VW, VH);
+    // Pulse-in
+    const a = Math.max(0, Math.min(1, 1 - tNorm * 0.9));
+    const scale = 1 + (1 - a) * 0.6;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = label === 'GO!' ? C.brightWhite : C.cyan;
+    ctx.font = '700 200px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.translate(VW / 2, VH / 2);
+    ctx.scale(scale, scale);
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  }
 }
 
 function startBonus(kind) {
   if (kind === MINI.WORD) wordStart();
   else if (kind === MINI.RUNNER) runnerStart();
-  else if (kind === MINI.ARROW) arrowStart();
-  else if (kind === MINI.HOMEROW) homerowStart();
+  else if (kind === MINI.TETRIS) tetrisStart();
 }
 
 function startRandomMiniGame() {
-  // Invoked from the menu "Play Mini Games" option.
+  // V9 §3.8: bonus rotation has three mini-games (Tetris unified).
   G.bonusPauseStart = now();
   G.bonusAccum = 0;
-  const choices = [MINI.WORD, MINI.RUNNER, MINI.ARROW, MINI.HOMEROW];
+  const choices = G.isMobile ? [MINI.TETRIS] : [MINI.WORD, MINI.RUNNER, MINI.TETRIS];
   G.bonusKind = choices[Math.floor(Math.random() * choices.length)];
   G.bcStart = now();
   G.state = 'bonus_countdown';
+  G.countdown = {
+    phase: 'intro',
+    miniKind: G.bonusKind,
+    introStart: now(),
+    countStart: 0,
+    waitingForTap: G.bonusKind === MINI.RUNNER,
+    lastTickAt: -1,
+  };
+  Audio.chime();
 }
 
 function resumePlayAfterBonus() {
@@ -1545,19 +1862,26 @@ function resumePlayAfterBonus() {
   G.bonusPauseStart = 0;
   G.bonusLastTick = t;
   G.bonusAccum = 0;
-  // If we came from the menu's "Play Mini Games" (no live session), go back to menu
+  // V9 §3.12: on mobile there's no main game — kick off another Tetris round instead of opening the menu.
+  if (G.isMobile) {
+    startRandomMiniGame();
+    return;
+  }
   if (!G.sessionStart) { openMenu('end'); return; }
   G.state = 'playing';
 }
 
 // ============================================================================
-// MINI-GAME 1: WORD PRACTICE (V4 carryover)
+// MINI-GAME 1: WORD PRACTICE — V9 §3.7 continuous-stream bonus round
 // ============================================================================
 function wordPool() {
+  // V9 §3.7: filter by currently-enabled rows from the §3.5 ladder, not raw phase.
+  let words = [];
+  if (rowEnabled('home'))   words = words.concat(HOME_ROW_WORDS);
+  if (rowEnabled('top'))    words = words.concat(TOP_ROW_WORDS);
+  if (rowEnabled('bottom')) words = words.concat(BOTTOM_ROW_WORDS);
+  if (!words.length) words = HOME_ROW_WORDS.slice();
   const u = unlockedSet();
-  let words = HOME_ROW_WORDS.slice();
-  if (G.phase >= 1) words = words.concat(TOP_ROW_WORDS);
-  if (G.phase >= 2) words = words.concat(BOTTOM_ROW_WORDS);
   const filtered = words.filter(w => [...w].every(c => u.has(c)));
   return filtered.length ? filtered : HOME_ROW_WORDS.slice(0, 5);
 }
@@ -1566,17 +1890,17 @@ function wordStart() {
   G.word = {
     word: '', typed: 0, startTime: now(), count: 0,
     shake: 0, fade: 1, fading: false,
-    expired: false,  // V8 §3.8: timer expired but word in flight
+    expired: false,           // V9 §3.7: 45s timer expired but in-flight word grace honored
   };
   wordNext();
   G.state = 'mini_word';
 }
 
 function wordNext() {
-  // V8 §3.7: pick the next word and fully reset per-word state.
   const pool = wordPool();
   if (!pool || pool.length === 0) { wordFinish(); return; }
   const prev = G.word.word;
+  // V9 §3.7: random selection with last-word exclusion.
   const choices = pool.length > 1 ? pool.filter(w => w !== prev) : pool;
   const list = choices.length ? choices : pool;
   G.word.word = list[Math.floor(Math.random() * list.length)];
@@ -1590,22 +1914,11 @@ function wordKey(ev) {
   if (w.fading) return;
   if (!ev.key) return;
 
-  // V7 §3.3: space commits a finished word.
-  if (ev.key === ' ' || ev.key === 'Spacebar') {
-    if (w.typed >= w.word.length) {
-      w.count += 1;
-      w.fading = true;
-      G.scorePulseTime = now();
-      const r = KB.rects[w.word[w.word.length - 1]];
-      if (r) spawnParticles(r.x + r.w / 2, r.y + r.h / 2, 18);
-    } else {
-      w.shake = 0.4; // pressed space too early
-    }
-    return;
-  }
+  // V9 §3.7: no space-to-commit — completion auto-advances. Ignore space entirely.
+  if (ev.key === ' ' || ev.key === 'Spacebar') return;
 
   if (ev.key.length !== 1 || !/[a-z]/i.test(ev.key)) return;
-  if (w.typed >= w.word.length) { w.shake = 0.25; return; }
+  if (w.typed >= w.word.length) return;
 
   const target = w.word[w.typed];
   const ch = ev.key.toLowerCase();
@@ -1615,9 +1928,20 @@ function wordKey(ev) {
     G.correctChars += 1;
     G.totalKeystrokes += 1;
     G.scorePulseTime = now();
-    Audio.play();
+    // V9 §3.7: correct keystroke → soft audio cue (encouraging, never sharp).
+    Audio.softCue();
+    // V9 §3.7: word completion — particle burst at the LAST letter's keyboard position,
+    // completion sound, fade out; counter increments visibly.
+    if (w.typed >= w.word.length) {
+      w.count += 1;
+      w.fading = true;
+      const last = w.word[w.word.length - 1];
+      const r = KB.rects[last];
+      if (r) spawnParticles(r.x + r.w / 2, r.y + r.h / 2, 22);
+      Audio.wordComplete();
+    }
   } else {
-    // V8 §3.9: wrong letter shakes the word (no penalty).
+    // V9 §3.7: wrong letter shakes the word (no penalty, no reset, no error sound).
     w.shake = 0.4;
   }
 }
@@ -1625,8 +1949,8 @@ function wordKey(ev) {
 function wordUpdate() {
   const w = G.word;
   const elapsed = now() - w.startTime;
-  // V8 §3.8: when the timer runs out, mark expired but let any in-flight word finish.
-  if (!w.expired && elapsed >= BONUS_DURATION) {
+  // V9 §3.7: round end at 45s with in-flight grace.
+  if (!w.expired && elapsed >= WORD_PRACTICE_DURATION) {
     w.expired = true;
   }
   if (w.shake > 0) w.shake = Math.max(0, w.shake - 1 / 60);
@@ -1634,35 +1958,37 @@ function wordUpdate() {
   if (w.fading) {
     w.fade -= 0.06;
     if (w.fade <= 0) {
-      // V8 §3.8: if timer expired, no new word — exit the round now.
+      // V9 §3.7: if timer expired, no new word — exit. Otherwise stream the next word.
       if (w.expired) { wordFinish(); return; }
-      // V8 §3.7: otherwise cycle to the next word reliably.
       wordNext();
     }
   } else if (w.expired) {
-    // Timer up and nothing typed: exit immediately rather than show a dead word.
+    // Timer up and word not in flight: exit immediately rather than show a dead word.
     if (w.typed === 0) { wordFinish(); return; }
     // Generous ceiling so we don't wait forever on an abandoned word.
-    if (elapsed >= BONUS_DURATION + 30.0) { wordFinish(); return; }
+    if (elapsed >= WORD_PRACTICE_DURATION + 20.0) { wordFinish(); return; }
   }
   updateParticles();
 }
 
 function wordFinish() {
   const cnt = G.word.count;
+  // V9 §3.5: record play + best for the mini-game collection.
+  G.miniPlays.word = (G.miniPlays.word | 0) + 1;
+  G.miniBest.word = Math.max(G.miniBest.word | 0, cnt);
+  persist();
   setMilestone(`Nice! ${cnt} words typed`);
   resumePlayAfterBonus();
 }
 
 function wordDraw() {
-  // V7 §3.7: warmer purple-tinted backdrop, single bold accent for the word.
   ctx.fillStyle = MG_COLORS.wordBg;
   ctx.fillRect(0, 0, VW, VH);
   drawKeyboard();
   drawParticles();
-  // Timer bar
+  // V9 §3.7: single round timer bar over the full 45s duration.
   const elapsed = now() - G.word.startTime;
-  const ratio = Math.min(1, elapsed / BONUS_DURATION);
+  const ratio = Math.min(1, elapsed / WORD_PRACTICE_DURATION);
   const fullW = Math.floor(VW * 0.4);
   const bx = VW / 2 - fullW / 2;
   ctx.fillStyle = '#3c465a';
@@ -1679,7 +2005,7 @@ function wordDraw() {
 
   ctx.save();
   ctx.fillStyle = C.offWhite;
-  ctx.font = '400 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.font = '500 22px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(`Words: ${G.word.count}`, 24, 24);
@@ -1720,7 +2046,7 @@ function drawHintEsc() {
 }
 
 // ============================================================================
-// MINI-GAME 2: THE RUNNER (V5 §6)
+// MINI-GAME 2: THE RUNNER — V9 §3.6: apples, visible track, fox-catches animation, crunch
 // ============================================================================
 function runnerStart() {
   G.runner = {
@@ -1731,20 +2057,21 @@ function runnerStart() {
     grounded: true,
     jumping: false,
     targetKey: null,
-    obstacles: [],
+    apples: [],                  // V9 §3.6: letter-labeled apples (was obstacles)
     spawnNextAt: now() + 0.8,
     speed: 240,
-    cleared: 0,
+    cleared: 0,                  // total apples kept away from the fox (jumped or blown up)
     blownUp: 0,
     jumped: 0,
     bumped: 0,
     bumpStop: 0,
     blasts: [],
-    runFrame: 0,         // V8 §3.10: fox run-cycle frame timer
-    // V8 §3.11: real game-over state
+    runFrame: 0,
+    // V9 §3.6: catch animation replaces V8 X-mark game-over.
     gameOver: false,
     gameOverAt: 0,
-    impactX: 0,          // where the X mark draws
+    caughtApple: null,           // reference to the apple in the fox's mouth
+    caughtAt: 0,                 // timestamp of catch
   };
   G.state = 'mini_runner';
 }
@@ -1753,7 +2080,7 @@ function runnerKey(ev) {
   const r = G.runner;
   const t = now();
 
-  // V8 §3.11: from the game-over state, Enter restarts, Esc handled globally.
+  // V9 §3.6: from the catch state, Enter restarts; Esc handled globally.
   if (r.gameOver) {
     if (ev.key === 'Enter') {
       runnerStart();
@@ -1769,7 +2096,7 @@ function runnerKey(ev) {
     r.grounded = false;
     r.jumping = true;
     Audio.play();
-    const nearest = r.obstacles.find(o => o.x > r.charX - 40 && o.x < r.charX + 220 && !o.cleared);
+    const nearest = r.apples.find(o => o.x > r.charX - 40 && o.x < r.charX + 220 && !o.cleared);
     if (nearest) {
       nearest.cleared = true;
       r.cleared += 1;
@@ -1780,7 +2107,7 @@ function runnerKey(ev) {
 
   if (ev.key && ev.key.length === 1 && /[a-z0-9]/i.test(ev.key)) {
     const ch = ev.key.toLowerCase();
-    const target = r.obstacles.find(o => !o.cleared && o.label === ch && o.x > -20 && o.x < VW + 20);
+    const target = r.apples.find(o => !o.cleared && o.label === ch && o.x > -20 && o.x < VW + 20);
     if (target) {
       target.cleared = true;
       r.cleared += 1;
@@ -1792,7 +2119,7 @@ function runnerKey(ev) {
       Audio.play();
       r.blasts.push({ x: target.x, y: 0, life: 0.45, born: t });
       const groundY = VH * 0.55;
-      spawnParticles(target.x, groundY - 14, 14, MG_COLORS.runnerObstacleEdge);
+      spawnParticles(target.x, groundY - 14, 14, '#f6a06a');
     } else {
       r.bumpStop = t + 0.25;
       r.bumped += 1;
@@ -1806,13 +2133,12 @@ function runnerUpdate() {
   const dtMs = Math.min(50, performance.now() - lastFrameTime);
   const dt = dtMs / 1000;
 
-  // V8 §3.11: game-over freezes the world; player chooses Enter or Esc.
+  // V9 §3.6: game-over plays out the catch-and-hold animation, then waits for Enter/Esc.
   if (r.gameOver) {
     updateParticles();
     return;
   }
 
-  // V7 §3.5: persists 45s; V8 §3.11 lets a hit end it earlier.
   if (t - r.startTime >= RUNNER_DURATION) { runnerFinish(); return; }
 
   const ramp = Math.min(1, (t - r.startTime) / RUNNER_DURATION);
@@ -1829,25 +2155,25 @@ function runnerUpdate() {
     }
   }
 
-  // V8 §3.10: run-cycle animation timer
   r.runFrame += dt * 8;
 
-  // Move obstacles, and V8 §3.11: detect impact with the runner.
-  for (let i = r.obstacles.length - 1; i >= 0; i--) {
-    const o = r.obstacles[i];
+  // Move apples; V9 §3.6: detect catch — fox bites and holds, round ends as catch.
+  for (let i = r.apples.length - 1; i >= 0; i--) {
+    const o = r.apples[i];
     o.x -= speed * dt;
     if (!o.cleared && !r.gameOver) {
-      // Collision: obstacle is at the runner column and the runner is on the ground.
       const dx = o.x - r.charX;
       if (dx <= 0 && dx > -28 && r.charY > -28) {
         r.gameOver = true;
         r.gameOverAt = t;
-        r.impactX = o.x;
-        Audio.beep(160, 0.20, 0.10);
-        spawnParticles(o.x, VH * 0.55 - 16, 24, MG_COLORS.runnerObstacleEdge);
+        r.caughtApple = o;
+        r.caughtAt = t;
+        // V9 §3.6: crunch sound on catch — satisfying, not punitive.
+        Audio.crunch();
+        spawnParticles(o.x, VH * 0.55 - 16, 18, '#f6a06a');
       }
     }
-    if (o.x < -50) r.obstacles.splice(i, 1);
+    if (o.x < -50) r.apples.splice(i, 1);
   }
 
   if (r.gameOver) { updateParticles(); return; }
@@ -1860,7 +2186,7 @@ function runnerUpdate() {
     const u = unlockedSet();
     const pool = [...u].filter(c => c !== ' ');
     const label = pool.length ? pool[Math.floor(Math.random() * pool.length)] : '';
-    r.obstacles.push({ x: VW + 20, label, cleared: false });
+    r.apples.push({ x: VW + 20, label, cleared: false, wobble: Math.random() * Math.PI * 2 });
     const baseGap = 1.4 - ramp * 0.5;
     r.spawnNextAt = t + Math.max(0.7, baseGap);
   }
@@ -1870,7 +2196,11 @@ function runnerUpdate() {
 
 function runnerFinish() {
   const r = G.runner;
-  setMilestone(`Nice! ${r.cleared} obstacles cleared`);
+  // V9 §3.5: record play + best for the mini-game collection.
+  G.miniPlays.runner = (G.miniPlays.runner | 0) + 1;
+  G.miniBest.runner = Math.max(G.miniBest.runner | 0, r.cleared);
+  persist();
+  setMilestone(`Nice! ${r.cleared} apples kept away`);
   resumePlayAfterBonus();
 }
 
@@ -1919,10 +2249,55 @@ function drawFox(cx, cy, runFrame) {
   ctx.restore();
 }
 
+// V9 §3.6: apple sprite — round red body, dark stem, light leaf, bold letter centered.
+function drawApple(x, y, label, wobble) {
+  ctx.save();
+  const wob = Math.sin(wobble + now() * 4) * 1.2;
+  ctx.translate(x, y + wob);
+  // body
+  const grad = ctx.createRadialGradient(-4, -4, 2, 0, 0, 20);
+  grad.addColorStop(0, '#ff6a5a');
+  grad.addColorStop(0.7, '#d8423a');
+  grad.addColorStop(1, '#8a1a1a');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0, 0, 18, 0, Math.PI * 2);
+  ctx.fill();
+  // shine
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(-6, -7, 4, 2.5, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  // stem
+  ctx.strokeStyle = '#3a2618';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -18);
+  ctx.lineTo(2, -23);
+  ctx.stroke();
+  // leaf
+  ctx.fillStyle = '#5a8a4a';
+  ctx.beginPath();
+  ctx.ellipse(5, -22, 5, 2.5, -0.7, 0, Math.PI * 2);
+  ctx.fill();
+  // letter
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 22px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+  ctx.lineWidth = 3;
+  if (label) {
+    ctx.strokeText(label.toUpperCase(), 0, 1);
+    ctx.fillText(label.toUpperCase(), 0, 1);
+  }
+  ctx.restore();
+}
+
 function runnerDraw() {
   const r = G.runner;
   const groundY = VH * 0.55;
-  // V8 §3.2: muted dusk gradient.
+  // Dusk gradient sky.
   const sky = MG_COLORS.runnerSky;
   const grad = ctx.createLinearGradient(0, 0, 0, groundY);
   grad.addColorStop(0, sky[0]);
@@ -1934,38 +2309,48 @@ function runnerDraw() {
   ctx.fillRect(0, groundY, VW, VH - groundY);
 
   drawKeyboard();
-  // Track line
-  ctx.strokeStyle = '#2a2c36';
-  ctx.lineWidth = 3;
+
+  // V9 §3.6: visible conveyor track — a clear, slightly elevated belt the apples ride along.
+  // Two parallel rails + tick marks that scroll right-to-left so the player sees the apple's path.
+  const trackTop = groundY - 6;
+  const trackBot = groundY + 8;
+  // Rail bodies
+  ctx.fillStyle = '#3a3548';
+  ctx.fillRect(40, trackTop, VW - 80, trackBot - trackTop);
+  // Highlight rail
+  ctx.fillStyle = '#5a5070';
+  ctx.fillRect(40, trackTop, VW - 80, 2);
+  // Scrolling tick marks for motion sense
+  const tickSpacing = 32;
+  const phase = (now() * 240) % tickSpacing;
+  ctx.fillStyle = '#28223a';
+  for (let x = 40 - phase; x < VW - 40; x += tickSpacing) {
+    ctx.fillRect(x, groundY + 2, 12, 2);
+  }
+  // Track edge lines
+  ctx.strokeStyle = '#6a608a';
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(60, groundY);
-  ctx.lineTo(VW - 60, groundY);
+  ctx.moveTo(40, trackTop);
+  ctx.lineTo(VW - 40, trackTop);
+  ctx.moveTo(40, trackBot);
+  ctx.lineTo(VW - 40, trackBot);
   ctx.stroke();
 
-  // V8 §3.10: pixel fox character
+  // V9 §3.6: pixel fox character (preserved, well-loved by testers).
   const cx = r.charX;
   const cy = groundY + r.charY;
-  drawFox(cx, cy, r.runFrame);
-
-  // Obstacles
-  ctx.font = '700 30px "SF Mono", Consolas, Menlo, monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (const o of r.obstacles) {
-    if (o.cleared) continue;
-    ctx.save();
-    ctx.fillStyle = MG_COLORS.runnerObstacle;
-    ctx.fillRect(o.x - 16, groundY - 32, 32, 32);
-    ctx.strokeStyle = MG_COLORS.runnerObstacleEdge;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(o.x - 16, groundY - 32, 32, 32);
-    if (o.label) {
-      ctx.fillStyle = '#dcdcdc';
-      ctx.fillText(o.label.toUpperCase(), o.x, groundY - 16);
-    }
-    ctx.restore();
+  if (!r.gameOver) {
+    drawFox(cx, cy, r.runFrame);
   }
 
+  // V9 §3.6: apples instead of letter blocks.
+  for (const o of r.apples) {
+    if (o.cleared) continue;
+    drawApple(o.x, groundY - 22, o.label, o.wobble || 0);
+  }
+
+  // Blasts (from typing a letter to keep an apple away)
   for (const b of r.blasts) {
     const age = now() - b.born;
     const t01 = age / b.life;
@@ -1973,17 +2358,17 @@ function runnerDraw() {
     const a = Math.max(0, 1 - t01);
     ctx.save();
     ctx.globalAlpha = a;
-    ctx.strokeStyle = MG_COLORS.runnerObstacleEdge;
+    ctx.strokeStyle = '#f6a06a';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(b.x, groundY - 16, radius, 0, Math.PI * 2);
+    ctx.arc(b.x, groundY - 22, radius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
 
   drawParticles();
 
-  // Timer bar (suppressed once game over so the impact moment reads cleanly)
+  // Timer bar (suppressed during catch animation so the moment reads cleanly).
   if (!r.gameOver) {
     const elapsed = now() - r.startTime;
     const ratio = Math.min(1, elapsed / RUNNER_DURATION);
@@ -1991,7 +2376,7 @@ function runnerDraw() {
     const bx = VW / 2 - fullW / 2;
     ctx.fillStyle = '#3c465a';
     roundRect(bx, 30, fullW, 4, 2); ctx.fill();
-    ctx.fillStyle = MG_COLORS.runnerObstacleEdge;
+    ctx.fillStyle = '#f6a06a';
     const remW = Math.max(0, Math.floor(fullW * (1 - ratio)));
     if (remW > 0) { roundRect(bx, 30, remW, 4, 2); ctx.fill(); }
   }
@@ -2002,59 +2387,73 @@ function runnerDraw() {
   ctx.textAlign = 'center';
   ctx.font = '400 16px "SF Mono", Consolas, Menlo, monospace';
   if (!r.gameOver) {
-    ctx.fillText('SPACE TO JUMP  ·  TYPE THE LETTER TO BLOW IT UP', VW / 2, 60);
+    ctx.fillText('SPACE TO JUMP  ·  TYPE THE LETTER TO KEEP THE APPLE AWAY', VW / 2, 60);
     ctx.font = '400 14px "SF Mono", Consolas, Menlo, monospace';
-    ctx.fillText(`CLEARED: ${r.cleared}  (JUMPED ${r.jumped} · BLOWN UP ${r.blownUp})`, VW / 2, 84);
+    ctx.fillText(`KEPT AWAY: ${r.cleared}  (JUMPED ${r.jumped} · TYPED ${r.blownUp})`, VW / 2, 84);
   }
   ctx.restore();
 
-  // V8 §3.11: gentle game-over with an "x" mark on the impact frame.
+  // V9 §3.6: fox catches the apple in its mouth on a miss. Replaces V8 X-mark game-over.
   if (r.gameOver) {
-    // X mark over the impact point
-    ctx.save();
-    ctx.strokeStyle = '#dcdcdc';
-    ctx.lineWidth = 4;
-    const xx = r.impactX, xy = groundY - 16;
-    ctx.beginPath();
-    ctx.moveTo(xx - 12, xy - 12); ctx.lineTo(xx + 12, xy + 12);
-    ctx.moveTo(xx + 12, xy - 12); ctx.lineTo(xx - 12, xy + 12);
-    ctx.stroke();
-    // Soft dim overlay
-    ctx.fillStyle = 'rgba(15,15,20,0.55)';
+    const age = now() - r.caughtAt;
+    // Catch animation: fox snaps forward toward the apple position, then sits still, holding it.
+    const snap = Math.min(1, age / 0.28);
+    const settle = Math.max(0, Math.min(1, (age - 0.5) / 0.8));
+    // Fox shifts forward a touch during the snap
+    const fx = r.charX + 6 * snap;
+    const fy = groundY + r.charY - 2 * Math.sin(snap * Math.PI);
+    drawFox(fx, fy, r.runFrame);
+    // Apple in fox's mouth — sits just in front of snout
+    if (r.caughtApple) {
+      // crunch wobble — small shake decaying after 0.6s
+      const crunchT = Math.max(0, 0.6 - age);
+      const crunchShake = crunchT > 0 ? Math.sin(age * 60) * crunchT * 3 : 0;
+      drawApple(fx + 22, fy - 14 + crunchShake, r.caughtApple.label, 0);
+      // bite-mark crescent on the side facing the fox
+      ctx.save();
+      ctx.fillStyle = MG_COLORS.runnerGround;
+      ctx.beginPath();
+      ctx.arc(fx + 14, fy - 14, 6, -Math.PI / 2, Math.PI / 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // Soft dim overlay; come up after the snap for clarity.
+    ctx.fillStyle = `rgba(15,15,20,${0.55 * settle})`;
     ctx.fillRect(0, 0, VW, VH);
-    ctx.fillStyle = C.cyan;
-    ctx.font = '500 44px "SF Mono", Consolas, Menlo, monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('CAUGHT BY AN OBSTACLE', VW / 2, VH / 2 - 30);
-    ctx.fillStyle = C.offWhite;
-    ctx.font = '400 22px "SF Mono", Consolas, Menlo, monospace';
-    ctx.fillText(`Cleared ${r.cleared} before the stop.`, VW / 2, VH / 2 + 14);
-    ctx.fillStyle = C.blueGray;
-    ctx.font = '400 18px "SF Mono", Consolas, Menlo, monospace';
-    ctx.fillText('Press Enter to run again  ·  Esc for menu', VW / 2, VH / 2 + 56);
-    ctx.restore();
+    if (settle > 0.05) {
+      ctx.save();
+      ctx.globalAlpha = settle;
+      ctx.fillStyle = C.cyan;
+      ctx.font = '500 44px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('THE FOX GOT THE APPLE!', VW / 2, VH / 2 - 30);
+      ctx.fillStyle = C.offWhite;
+      ctx.font = '400 22px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+      ctx.fillText(`${r.cleared} apples kept away.`, VW / 2, VH / 2 + 14);
+      ctx.fillStyle = C.blueGray;
+      ctx.font = '400 18px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+      ctx.fillText('Press ENTER to play again  ·  Esc for menu', VW / 2, VH / 2 + 56);
+      ctx.restore();
+    }
   } else {
     drawHintEsc();
   }
 }
 
 // ============================================================================
-// MINI-GAME 3: ARROW KEY TRAINER (V8 §3.12, §3.13)
-// MINI-GAME 4: HOME-ROW TETRIS    (V8 §3.14)
+// MINI-GAME 3: TETRIS — V9 §3.8: unified game; arrows always active; ~1-in-4 lettered;
+// row-completion double-blink then explode; auto-place drop animates over ~0.50s.
 // ============================================================================
-// V8 §3.12: larger, lower, clearly bounded playfield; no HUD overlay.
 const ARROW_COLS = 10, ARROW_ROWS = 18;
 const ARROW_CELL = 32;
 const ARROW_FIELD_W = ARROW_COLS * ARROW_CELL;  // 320
 const ARROW_FIELD_H = ARROW_ROWS * ARROW_CELL;  // 576
 const ARROW_FX = Math.round((VW - ARROW_FIELD_W) / 2);
-const ARROW_FY = 140; // slightly lower than center so the field sits where the eye expects a board
+const ARROW_FY = 140;
 
-// V8 §3.13: 1-in-4 pieces lettered; letter pool tied to currently unlocked rows.
+// V8 §3.13: 1-in-4 pieces lettered; letter pool from currently-enabled rows in the main game (V9 §3.5).
 const ARROW_LETTERED_RATIO = 0.25;
-// V8 §3.14: home-row trainer letter set.
-const HOMEROW_LETTERS = ['a','s','d','f','j','k','l',';'];
 
 const TETRO = {
   I: [[1,1,1,1]],
@@ -2067,25 +2466,28 @@ const TETRO = {
 };
 const TETRO_NAMES = Object.keys(TETRO);
 
-function arrowStart() {
+function tetrisStart() {
   G.arrow = {
     startTime: now(),
     grid: Array.from({length: ARROW_ROWS}, () => Array(ARROW_COLS).fill(0)),
     piece: null, pieceName: 'I', pieceX: 0, pieceY: 0,
-    pieceLetter: null,           // V8 §3.13: non-null on lettered pieces
+    pieceLetter: null,
     fallAccum: 0,
     fallInterval: 0.9,
     cleared: 0,
     rampStart: now(),
     bumpStop: 0,
     toppedOut: false,
-    autoBurst: null,             // {x,y,t} for the auto-place animation flash
+    // V9 §3.8: auto-place animation — descend over ~0.50s instead of snapping.
+    autoDrop: null,              // { shape, name, letter, fromX, fromY, toX, toY, start, duration }
+    // V9 §3.8: row-completion fanfare — double-blink, then explode.
+    fanfare: null,               // { rows:[...], start, phase:'blink'|'explode', explodeUntil }
   };
-  arrowNewPiece(false);
-  G.state = 'mini_arrow';
+  tetrisNewPiece();
+  G.state = 'mini_tetris';
 }
 
-function arrowNewPiece(forceHomeRow) {
+function tetrisNewPiece() {
   const a = G.arrow;
   const elapsed = now() - a.rampStart;
   const ramp = Math.min(1, elapsed / 12.0);
@@ -2094,11 +2496,8 @@ function arrowNewPiece(forceHomeRow) {
   if (ramp > 0.6 && Math.random() < 0.5) shape = arrowRotate(shape);
   a.piece = shape;
   a.pieceName = name;
-  // V8 §3.13: assign a letter to ~25% of pieces (or always, in home-row mode).
-  if (forceHomeRow) {
-    a.pieceLetter = HOMEROW_LETTERS[Math.floor(Math.random() * HOMEROW_LETTERS.length)];
-  } else if (Math.random() < ARROW_LETTERED_RATIO) {
-    // Letter pool drawn from currently unlocked rows in the main game.
+  // V9 §3.8: ~1-in-4 pieces letter-labeled. Letter pool from currently-enabled rows (§3.5).
+  if (Math.random() < ARROW_LETTERED_RATIO) {
     const u = unlockedSet();
     const pool = [...u].filter(c => c !== ' ');
     a.pieceLetter = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
@@ -2216,34 +2615,62 @@ function arrowLockPiece() {
       if (gy >= 0 && gy < ARROW_ROWS) a.grid[gy][gx] = 1;
     }
   }
+  // V9 §3.8: detect completed rows but DEFER the clear into the fanfare animation.
+  const completedRows = [];
   for (let y = ARROW_ROWS - 1; y >= 0; y--) {
-    if (a.grid[y].every(v => v)) {
-      a.grid.splice(y, 1);
-      a.grid.unshift(Array(ARROW_COLS).fill(0));
-      a.cleared += 1;
-      Audio.play();
-      y += 1;
-    }
+    if (a.grid[y].every(v => v)) completedRows.push(y);
   }
-  const forceHomeRow = G.state === 'mini_homerow';
-  const fits = arrowNewPiece(forceHomeRow);
+  if (completedRows.length > 0) {
+    a.fanfare = {
+      rows: completedRows.slice(),
+      start: now(),
+      phase: 'blink',
+      explodeUntil: 0,
+    };
+    Audio.tetrisClear();
+    a.cleared += completedRows.length;
+    // Hold spawning the next piece until the fanfare completes.
+    a.piece = [[0]]; // empty placeholder so draw doesn't render anything during fanfare
+    a.pieceLetter = null;
+    return;
+  }
+  const fits = tetrisNewPiece();
   if (!fits) {
     a.toppedOut = true;
     a.bumpStop = now() + 1.4;
   }
 }
 
-function arrowKey(ev) {
+// V9 §3.8: after the fanfare finishes, remove the cleared rows, drop everything above, and spawn the next piece.
+function tetrisCommitFanfareClear() {
+  const a = G.arrow;
+  if (!a.fanfare) return;
+  // Sort descending so splice doesn't shift indices we still need.
+  const rows = a.fanfare.rows.slice().sort((p, q) => q - p);
+  for (const y of rows) {
+    a.grid.splice(y, 1);
+    a.grid.unshift(Array(ARROW_COLS).fill(0));
+  }
+  a.fanfare = null;
+  const fits = tetrisNewPiece();
+  if (!fits) {
+    a.toppedOut = true;
+    a.bumpStop = now() + 1.4;
+  }
+}
+
+function tetrisKey(ev) {
   const a = G.arrow;
   if (a.toppedOut) return;
   if (a.bumpStop > now()) return;
+  if (a.fanfare) return;     // input locked during row-clear fanfare
+  if (a.autoDrop) return;    // input locked during the animated auto-place descent
 
-  // V8 §3.13: if the active piece is lettered and the player types that letter,
-  // auto-rotate and slide it to the optimal position, then lock.
+  // V9 §3.8: arrows always active. If the piece is lettered and the player types it, auto-place.
   if (a.pieceLetter && ev.key && ev.key.length === 1) {
     const ch = ev.key.toLowerCase();
     if (ch === a.pieceLetter) {
-      arrowAutoPlace();
+      tetrisAutoPlace();
       return;
     }
   }
@@ -2260,32 +2687,89 @@ function arrowKey(ev) {
   }
 }
 
-function arrowAutoPlace() {
+// V9 §3.8: instead of snapping, animate the descent over TETRIS_AUTOPLACE_DROP_DURATION seconds
+// so the player can see *where* and *why* the piece is being placed.
+function tetrisAutoPlace() {
   const a = G.arrow;
   const best = arrowFindBestPlacement(a.piece);
   if (!best) return;
-  a.piece = best.shape;
-  a.pieceX = best.px;
-  a.pieceY = best.py;
-  // Score the typing action — counts as one correct keystroke.
+  // Score the typing action immediately.
   G.correctChars += 1;
   G.totalKeystrokes += 1;
   G.scorePulseTime = now();
   if (a.pieceLetter) G.keyGlow[a.pieceLetter] = now();
-  // Burst at the locked centroid for satisfying feedback.
-  const cx = ARROW_FX + (a.pieceX + a.piece[0].length / 2) * ARROW_CELL;
-  const cy = ARROW_FY + (a.pieceY + a.piece.length / 2) * ARROW_CELL;
-  spawnParticles(cx, cy, 18, MG_COLORS.tetro[a.pieceName] || C.cyan);
-  a.autoBurst = { x: cx, y: cy, t: now() };
   Audio.play();
-  arrowLockPiece();
+  // Capture the source position; the animation will lerp piece/X/Y to the target,
+  // then lock when complete.
+  a.autoDrop = {
+    shape: best.shape,
+    name: a.pieceName,
+    letter: a.pieceLetter,
+    fromX: a.pieceX, fromY: a.pieceY,
+    toX: best.px,    toY: best.py,
+    start: now(),
+    duration: TETRIS_AUTOPLACE_DROP_DURATION,
+  };
+  // Snap rotation now so the visible shape matches the auto-rotated target shape
+  // immediately (the slide-and-fall reads as one continuous motion).
+  a.piece = best.shape;
 }
 
-function arrowUpdate() {
+function tetrisTickAutoDrop() {
+  const a = G.arrow;
+  if (!a.autoDrop) return;
+  const t = now();
+  const ad = a.autoDrop;
+  const u = Math.min(1, (t - ad.start) / ad.duration);
+  // ease-in-quad — slow start, bottoms out at the target so the placement reads clearly
+  const e = u * u;
+  a.pieceX = ad.fromX + (ad.toX - ad.fromX) * e;
+  a.pieceY = ad.fromY + (ad.toY - ad.fromY) * e;
+  if (u >= 1) {
+    a.pieceX = ad.toX;
+    a.pieceY = ad.toY;
+    a.autoDrop = null;
+    // Final burst at the locked centroid for satisfying feedback.
+    const cx = ARROW_FX + (a.pieceX + a.piece[0].length / 2) * ARROW_CELL;
+    const cy = ARROW_FY + (a.pieceY + a.piece.length / 2) * ARROW_CELL;
+    spawnParticles(cx, cy, 18, MG_COLORS.tetro[a.pieceName] || C.cyan);
+    arrowLockPiece();
+  }
+}
+
+function tetrisTickFanfare() {
+  const a = G.arrow;
+  if (!a.fanfare) return;
+  const t = now();
+  const age = t - a.fanfare.start;
+  // V9 §3.8: double-blink (0.6s) → explode (0.55s) → commit clear.
+  // Blink toggles every ~0.15s; explosion particles spawn at phase transition.
+  const BLINK_DURATION = 0.60;
+  const EXPLODE_DURATION = 0.55;
+  if (a.fanfare.phase === 'blink' && age >= BLINK_DURATION) {
+    a.fanfare.phase = 'explode';
+    a.fanfare.explodeUntil = t + EXPLODE_DURATION;
+    // Spawn explosion particles across each cleared row.
+    for (const y of a.fanfare.rows) {
+      for (let x = 0; x < ARROW_COLS; x++) {
+        const px = ARROW_FX + (x + 0.5) * ARROW_CELL;
+        const py = ARROW_FY + (y + 0.5) * ARROW_CELL;
+        spawnParticles(px, py, 4, C.brightWhite);
+      }
+    }
+  } else if (a.fanfare.phase === 'explode' && t >= a.fanfare.explodeUntil) {
+    tetrisCommitFanfareClear();
+  }
+}
+
+function tetrisUpdate() {
   const a = G.arrow;
   const t = now();
-  if (a.toppedOut && t >= a.bumpStop) { arrowFinish(); return; }
+  if (a.toppedOut && t >= a.bumpStop) { tetrisFinish(); return; }
   if (a.bumpStop > t) { updateParticles(); return; }
+  // V9 §3.8: advance the row-clear fanfare or the animated auto-place drop; gravity pauses during these.
+  if (a.fanfare) { tetrisTickFanfare(); updateParticles(); return; }
+  if (a.autoDrop) { tetrisTickAutoDrop(); updateParticles(); return; }
   const dt = Math.min(0.05, (performance.now() - lastFrameTime) / 1000);
   a.fallAccum += dt;
   if (a.fallAccum >= a.fallInterval) {
@@ -2296,97 +2780,139 @@ function arrowUpdate() {
   updateParticles();
 }
 
-function arrowFinish() {
+function tetrisFinish() {
+  // V9 §3.5: record play + best for the mini-game collection.
+  G.miniPlays.tetris = (G.miniPlays.tetris | 0) + 1;
+  G.miniBest.tetris = Math.max(G.miniBest.tetris | 0, G.arrow.cleared);
+  persist();
   setMilestone(`Nice! ${G.arrow.cleared} lines cleared`);
   resumePlayAfterBonus();
 }
 
-// V8 §3.12: shared draw for both Tetris mini-games — no HUD overlay,
-// instructions and labels above/below the field only.
-function drawTetrisField(modeLabel, instructionLine) {
+// V9 §3.8: unified Tetris draw. Letter rendered in main-game WHITE inside the bottom-left
+// square of the piece's bounding box. Row-completion: double-blink, then explode.
+function tetrisDraw() {
   const a = G.arrow;
   ctx.fillStyle = MG_COLORS.arrowBg;
   ctx.fillRect(0, 0, VW, VH);
 
-  // Frame — clearly bounded
+  // Frame
   ctx.fillStyle = MG_COLORS.arrowGrid;
   ctx.fillRect(ARROW_FX, ARROW_FY, ARROW_FIELD_W, ARROW_FIELD_H);
   ctx.strokeStyle = '#5a5a78';
   ctx.lineWidth = 3;
   ctx.strokeRect(ARROW_FX - 1.5, ARROW_FY - 1.5, ARROW_FIELD_W + 3, ARROW_FIELD_H + 3);
 
+  // V9 §3.8: row-completion fanfare — during the blink phase, the cleared rows flash white
+  // twice (~150ms each), then explode (particles handled by spawnParticles at transition).
+  const fanfareRows = a.fanfare ? new Set(a.fanfare.rows) : null;
+  let blinkVisible = false;
+  if (a.fanfare && a.fanfare.phase === 'blink') {
+    const age = now() - a.fanfare.start;
+    // Two on/off cycles in ~0.6s — on at 0–0.15, off 0.15–0.30, on 0.30–0.45, off 0.45–0.60.
+    blinkVisible = (Math.floor(age / 0.15) % 2) === 0;
+  }
+
   // Stack
   for (let y = 0; y < ARROW_ROWS; y++) {
     for (let x = 0; x < ARROW_COLS; x++) {
-      if (a.grid[y][x]) {
-        ctx.fillStyle = '#5a6680';
-        ctx.fillRect(ARROW_FX + x * ARROW_CELL + 1, ARROW_FY + y * ARROW_CELL + 1, ARROW_CELL - 2, ARROW_CELL - 2);
-        ctx.strokeStyle = '#7a88a8';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(ARROW_FX + x * ARROW_CELL + 1, ARROW_FY + y * ARROW_CELL + 1, ARROW_CELL - 2, ARROW_CELL - 2);
+      if (!a.grid[y][x]) continue;
+      let fill = '#5a6680', stroke = '#7a88a8';
+      if (fanfareRows && fanfareRows.has(y)) {
+        if (a.fanfare.phase === 'blink') {
+          if (!blinkVisible) continue; // off frame — leave the cell empty for the flash
+          fill = '#ffffff'; stroke = '#ffffff';
+        } else if (a.fanfare.phase === 'explode') {
+          // Explosion frame — skip rendering so the gap reads while particles fly.
+          continue;
+        }
+      }
+      ctx.fillStyle = fill;
+      ctx.fillRect(ARROW_FX + x * ARROW_CELL + 1, ARROW_FY + y * ARROW_CELL + 1, ARROW_CELL - 2, ARROW_CELL - 2);
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ARROW_FX + x * ARROW_CELL + 1, ARROW_FY + y * ARROW_CELL + 1, ARROW_CELL - 2, ARROW_CELL - 2);
+    }
+  }
+
+  // Active piece (suppressed during fanfare; resumes when next piece spawns)
+  if (!a.fanfare) {
+    const pieceColor = MG_COLORS.tetro[a.pieceName] || C.cyan;
+    ctx.fillStyle = pieceColor;
+    for (let y = 0; y < a.piece.length; y++) {
+      for (let x = 0; x < a.piece[0].length; x++) {
+        if (!a.piece[y][x]) continue;
+        const gx = a.pieceX + x, gy = a.pieceY + y;
+        if (gy < 0) continue;
+        ctx.fillRect(ARROW_FX + gx * ARROW_CELL + 1, ARROW_FY + gy * ARROW_CELL + 1, ARROW_CELL - 2, ARROW_CELL - 2);
+      }
+    }
+
+    // V9 §3.8: letter rendered inside the BOTTOM-LEFT square of the piece, in main-game WHITE.
+    if (a.pieceLetter) {
+      // Find the bottom-left filled square of the piece's bounding box.
+      let blRow = -1, blCol = -1;
+      for (let y = a.piece.length - 1; y >= 0 && blRow === -1; y--) {
+        for (let x = 0; x < a.piece[0].length; x++) {
+          if (a.piece[y][x]) { blRow = y; blCol = x; break; }
+        }
+      }
+      if (blRow !== -1) {
+        const sx = ARROW_FX + (a.pieceX + blCol + 0.5) * ARROW_CELL;
+        const sy = ARROW_FY + (a.pieceY + blRow + 0.5) * ARROW_CELL;
+        if (sy >= ARROW_FY) {
+          ctx.save();
+          ctx.fillStyle = C.brightWhite;
+          ctx.font = `700 ${Math.floor(ARROW_CELL * 0.78)}px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(a.pieceLetter.toUpperCase(), sx, sy);
+          ctx.restore();
+        }
       }
     }
   }
 
-  // Active piece
-  const pieceColor = MG_COLORS.tetro[a.pieceName] || C.cyan;
-  ctx.fillStyle = pieceColor;
-  for (let y = 0; y < a.piece.length; y++) {
-    for (let x = 0; x < a.piece[0].length; x++) {
-      if (!a.piece[y][x]) continue;
-      const gx = a.pieceX + x, gy = a.pieceY + y;
-      if (gy < 0) continue;
-      ctx.fillRect(ARROW_FX + gx * ARROW_CELL + 1, ARROW_FY + gy * ARROW_CELL + 1, ARROW_CELL - 2, ARROW_CELL - 2);
-    }
-  }
-
-  // Piece letter label centered on the piece's bounding box.
-  if (a.pieceLetter) {
-    const pcx = ARROW_FX + (a.pieceX + a.piece[0].length / 2) * ARROW_CELL;
-    const pcy = ARROW_FY + (a.pieceY + a.piece.length / 2) * ARROW_CELL;
-    ctx.save();
-    ctx.fillStyle = '#0f0f14';
-    ctx.font = `700 ${Math.floor(ARROW_CELL * 0.9)}px "SF Mono", Consolas, Menlo, monospace`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(a.pieceLetter.toUpperCase(), pcx, pcy);
-    ctx.restore();
-  }
-
   drawParticles();
 
-  // Header above the field — mode label and persistence indicator.
+  // Header
   ctx.save();
   ctx.fillStyle = '#96a0aa';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.font = '500 20px "SF Mono", Consolas, Menlo, monospace';
-  ctx.fillText(modeLabel, VW / 2, 60);
+  ctx.fillText('TETRIS', VW / 2, 60);
   ctx.font = '400 15px "SF Mono", Consolas, Menlo, monospace';
   ctx.fillStyle = '#6a7480';
-  ctx.fillText(instructionLine, VW / 2, 92);
-  // Lines counter — to the right of the field, never inside it.
-  ctx.fillStyle = pieceColor;
+  const hint = G.isMobile
+    ? 'TAP TO ROTATE  ·  SWIPE TO MOVE  ·  TAP THE LETTER ON A PIECE TO AUTO-PLACE'
+    : '← → MOVE   ↓ DROP   ↑ ROTATE   ·   TYPE A LETTER ON A LETTERED PIECE TO AUTO-PLACE';
+  ctx.fillText(hint, VW / 2, 92);
+  // Lines counter
+  ctx.fillStyle = MG_COLORS.tetro[a.pieceName] || C.cyan;
   ctx.font = '500 22px "SF Mono", Consolas, Menlo, monospace';
   ctx.textAlign = 'left';
   ctx.fillText(`LINES: ${a.cleared}`, ARROW_FX + ARROW_FIELD_W + 24, ARROW_FY + 12);
   ctx.restore();
 
-  // Footer below the field — esc hint.
+  // Footer
   ctx.save();
   ctx.fillStyle = '#6a7480';
   ctx.font = '400 13px "SF Mono", Consolas, Menlo, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText('PRESS ESC TO END THE ROUND', VW / 2, ARROW_FY + ARROW_FIELD_H + 18);
+  ctx.fillText(G.isMobile ? 'TAP THE × IN THE TOP-RIGHT TO END' : 'PRESS ESC TO END THE ROUND', VW / 2, ARROW_FY + ARROW_FIELD_H + 18);
   ctx.restore();
+
+  // V9 §3.12: mobile control buttons + close X.
+  if (G.isMobile) drawTetrisMobileControls();
 
   // Top-out announcement
   if (a.toppedOut) {
     ctx.save();
     ctx.fillStyle = 'rgba(15,15,20,0.7)';
     ctx.fillRect(0, 0, VW, VH);
-    ctx.fillStyle = pieceColor;
+    ctx.fillStyle = MG_COLORS.tetro[a.pieceName] || C.cyan;
     ctx.font = '500 56px "SF Mono", Consolas, Menlo, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -2398,54 +2924,8 @@ function drawTetrisField(modeLabel, instructionLine) {
   }
 }
 
-function arrowDraw() {
-  drawTetrisField('ARROW KEY TRAINER', '← → MOVE   ↓ DROP   ↑ ROTATE   ·   TYPE A LETTER ON A LETTERED PIECE TO AUTO-PLACE');
-}
-
-// V8 §3.14: home-row Tetris — reuses the engine, typing-only input.
-function homerowStart() {
-  // Reuse G.arrow as the engine state; the state value distinguishes input handling.
-  G.arrow = {
-    startTime: now(),
-    grid: Array.from({length: ARROW_ROWS}, () => Array(ARROW_COLS).fill(0)),
-    piece: null, pieceName: 'I', pieceX: 0, pieceY: 0,
-    pieceLetter: null,
-    fallAccum: 0,
-    fallInterval: 0.9,
-    cleared: 0,
-    rampStart: now(),
-    bumpStop: 0,
-    toppedOut: false,
-    autoBurst: null,
-  };
-  arrowNewPiece(true);
-  G.state = 'mini_homerow';
-}
-
-function homerowKey(ev) {
-  const a = G.arrow;
-  if (a.toppedOut) return;
-  if (a.bumpStop > now()) return;
-  // Arrow keys are disabled in this mode. Only typing the piece's home-row letter places it.
-  if (!ev.key || ev.key.length !== 1) return;
-  const ch = ev.key.toLowerCase();
-  if (a.pieceLetter && ch === a.pieceLetter) {
-    arrowAutoPlace();
-  }
-}
-
-function homerowUpdate() {
-  // Same engine tick.
-  arrowUpdate();
-}
-
-function homerowFinish() {
-  arrowFinish();
-}
-
-function homerowDraw() {
-  drawTetrisField('HOME-ROW TRAINER', 'TYPE THE LETTER ON THE PIECE — A S D F J K L ;');
-}
+// Forward-declaration placeholder; defined later alongside touch handlers.
+function drawTetrisMobileControls() { /* defined in mobile section */ }
 
 // ============================================================================
 // END SCREEN (after End For Now)
@@ -2469,6 +2949,19 @@ function endDraw() {
 function handleEscape() {
   const s = G.state;
   if (s === 'menu') return;
+  // V9 §3.12: on mobile, "escape" returns to the mobile entry screen — never the keyboard-only menu.
+  if (G.isMobile) {
+    // Persist tetris stats if we're inside it.
+    if (s === 'mini_tetris' && G.arrow) {
+      G.miniPlays.tetris = (G.miniPlays.tetris | 0) + 1;
+      G.miniBest.tetris = Math.max(G.miniBest.tetris | 0, G.arrow.cleared | 0);
+      persist();
+    }
+    G.state = 'onboarding'; // keep state inert until they tap Play a game again
+    G.countdown = null;
+    mobileRec.classList.add('show');
+    return;
+  }
   if (s === 'playing') {
     G.pauseTime = now();
     openMenu('pause');
@@ -2480,12 +2973,10 @@ function handleEscape() {
     openMenu('pause');
     return;
   }
-  if (s === 'mini_word' || s === 'mini_runner' || s === 'mini_arrow' || s === 'mini_homerow') {
-    // Finish bonus, then pause-menu
+  if (s === 'mini_word' || s === 'mini_runner' || s === 'mini_tetris') {
     if (s === 'mini_word') wordFinish();
     else if (s === 'mini_runner') runnerFinish();
-    else if (s === 'mini_arrow') arrowFinish();
-    else if (s === 'mini_homerow') homerowFinish();
+    else if (s === 'mini_tetris') tetrisFinish();
     G.pauseTime = now();
     openMenu('pause');
     return;
@@ -2539,11 +3030,110 @@ function onKeyDown(ev) {
   else if (s === 'menu') menuKey(ev);
   else if (s === 'mini_word') wordKey(ev);
   else if (s === 'mini_runner') runnerKey(ev);
-  else if (s === 'mini_arrow') arrowKey(ev);
-  else if (s === 'mini_homerow') homerowKey(ev);
+  else if (s === 'mini_tetris') tetrisKey(ev);
+  // V9 §3.9: Runner intro accepts space to advance into the countdown.
+  else if (s === 'bonus_countdown' && (ev.key === ' ' || ev.key === 'Spacebar' || ev.key === 'Enter')) {
+    bcAdvanceFromTap();
+  }
 }
 
 window.addEventListener('keydown', onKeyDown);
+
+// ============================================================================
+// MOUSE / TOUCH DISPATCH — V9 §3.1 and §3.12
+// ============================================================================
+let lastSwipeStart = null;
+function canvasFromEvent(ev) {
+  let cx, cy;
+  if (ev.touches && ev.touches[0]) { cx = ev.touches[0].clientX; cy = ev.touches[0].clientY; }
+  else if (ev.changedTouches && ev.changedTouches[0]) { cx = ev.changedTouches[0].clientX; cy = ev.changedTouches[0].clientY; }
+  else { cx = ev.clientX; cy = ev.clientY; }
+  return clientToCanvas(cx, cy);
+}
+
+function onCanvasPointer(ev) {
+  Audio.unlock();
+  hideFocusBanner();
+  if (statsPopup.classList.contains('show')) {
+    // Click anywhere outside the card closes — handled by stats popup's own listener.
+    return;
+  }
+  const pt = canvasFromEvent(ev);
+  const s = G.state;
+  // V9 §3.1: route to the right state handler. Onboarding is intentionally NOT click-advanced —
+  // it's a keystroke drill (the whole point is finger placement training, per V8 §3.5 preserved).
+  if (s === 'onboarding') {
+    return;
+  }
+  if (s === 'menu') {
+    if (G.menuAlpha < 200) return;
+    // Hit-test menu buttons.
+    const btnW = 380, btnH = 56, gap = 18;
+    const n = MENU_OPTIONS.length;
+    const totalH = n * btnH + (n - 1) * gap;
+    let cy0 = VH / 2 - totalH / 2;
+    for (let i = 0; i < n; i++) {
+      const x = VW / 2 - btnW / 2;
+      const y = cy0 + i * (btnH + gap);
+      if (pt.x >= x && pt.x <= x + btnW && pt.y >= y && pt.y <= y + btnH) {
+        G.menuSel = i;
+        G.menuAction = i;
+        G.menuTarget = 0;
+        return;
+      }
+    }
+    return;
+  }
+  if (s === 'bonus_countdown') {
+    bcAdvanceFromTap();
+    return;
+  }
+  if (s === 'mini_runner') {
+    const r = G.runner;
+    if (r && r.gameOver) {
+      runnerStart();
+      return;
+    }
+    // Tap to jump (mobile or click)
+    runnerKey({ key: ' ' });
+    return;
+  }
+  if (s === 'mini_tetris') {
+    tetrisMobileTap(pt.x, pt.y);
+    return;
+  }
+  if (s === 'end') {
+    // Click to return to menu / restart cycle.
+    G.state = 'menu';
+    openMenu('end');
+    return;
+  }
+}
+
+canvas.addEventListener('click', onCanvasPointer);
+canvas.addEventListener('touchstart', (ev) => {
+  ev.preventDefault();
+  if (G.state === 'mini_tetris') {
+    lastSwipeStart = canvasFromEvent(ev);
+  }
+  onCanvasPointer(ev);
+}, { passive: false });
+// V9 §3.12: swipe-to-move in Tetris when the touch slides far enough horizontally.
+canvas.addEventListener('touchmove', (ev) => {
+  ev.preventDefault();
+  if (G.state !== 'mini_tetris' || !lastSwipeStart) return;
+  const pt = canvasFromEvent(ev);
+  const dx = pt.x - lastSwipeStart.x;
+  const threshold = ARROW_CELL;
+  if (Math.abs(dx) >= threshold) {
+    tetrisKey({ key: dx > 0 ? 'ArrowRight' : 'ArrowLeft' });
+    lastSwipeStart = pt; // allow continuous sliding
+  }
+}, { passive: false });
+canvas.addEventListener('touchend', (ev) => {
+  ev.preventDefault();
+  lastSwipeStart = null;
+}, { passive: false });
 
 // ============================================================================
 // MAIN LOOP
@@ -2557,8 +3147,7 @@ function update() {
   else if (s === 'bonus_countdown') bcUpdate();
   else if (s === 'mini_word') wordUpdate();
   else if (s === 'mini_runner') runnerUpdate();
-  else if (s === 'mini_arrow') arrowUpdate();
-  else if (s === 'mini_homerow') homerowUpdate();
+  else if (s === 'mini_tetris') tetrisUpdate();
 }
 
 function draw() {
@@ -2580,8 +3169,7 @@ function draw() {
   else if (s === 'bonus_countdown') bcDraw();
   else if (s === 'mini_word') wordDraw();
   else if (s === 'mini_runner') runnerDraw();
-  else if (s === 'mini_arrow') arrowDraw();
-  else if (s === 'mini_homerow') homerowDraw();
+  else if (s === 'mini_tetris') tetrisDraw();
   else if (s === 'end') endDraw();
 }
 
@@ -2600,11 +3188,29 @@ const segFast = document.getElementById('seg-fast');
 const memLabel = document.getElementById('mem-label');
 const memState = document.getElementById('mem-state');
 
+// V9 §3.4: build the tier strip cells once, then toggle their .on class to reflect the current tier.
+const tierStrip = document.getElementById('tier-strip');
+function buildTierStrip() {
+  tierStrip.innerHTML = '';
+  for (let i = 0; i < TIER_COUNT; i++) {
+    const cell = document.createElement('span');
+    cell.className = 'tier-cell';
+    tierStrip.appendChild(cell);
+  }
+}
+buildTierStrip();
+
 function updateToggleVisuals() {
   segSlow.classList.toggle('on', G.slowFast === 'slow');
   segFast.classList.toggle('on', G.slowFast === 'fast');
   memState.textContent = G.memoryEnabled ? 'ON' : 'OFF';
   memState.classList.toggle('on', G.memoryEnabled);
+  // V9 §3.4: refresh tier strip from current row's tier.
+  const tier = G.rowTiers[currentSpeedKey()] | 0;
+  const cells = tierStrip.children;
+  for (let i = 0; i < cells.length; i++) {
+    cells[i].classList.toggle('on', i <= tier);
+  }
 }
 
 // V8 §3.1: clicking Slow/Fast segs independently sets that mode.
@@ -2653,26 +3259,131 @@ memLabel.addEventListener('click', (e) => {
 });
 
 // ============================================================================
-// STATS POPUP  —  V8 §3.4
+// STATS POPUP — V9 §3.5 celebration screen + §3.10 hide-zero
 // ============================================================================
 const statsPopup = document.getElementById('stats-popup');
-const statLiveWpm = document.getElementById('stat-live-wpm');
-const statBestWpm = document.getElementById('stat-best-wpm');
-const statTotalKeys = document.getElementById('stat-total-keys');
-const statSessions = document.getElementById('stat-sessions');
-const statRow = document.getElementById('stat-row');
-const ROW_LABEL = ['Home', 'Home + Top', 'Home + Top + Bottom', 'All keys + Numbers'];
+const statsHero = document.getElementById('stats-hero');
+const statsHeroLabel = document.getElementById('stats-hero-label');
+const statsLadder = document.getElementById('stats-ladder');
+const statsMiniLabel = document.getElementById('stats-mini-label');
+const statsMiniCollection = document.getElementById('stats-mini-collection');
+
+// V9 §3.5: row-ladder rungs.
+const LADDER_RUNGS = [
+  { key: 'home',   label: 'Home row',    keys: 'A S D F G H J K L' },
+  { key: 'top',    label: 'Top row',     keys: 'Q W E R T Y U I O P' },
+  { key: 'bottom', label: 'Bottom row',  keys: 'Z X C V B N M' },
+  { key: 'num',    label: 'Numbers',     keys: '1 2 3 4 5 6 7 8 9 0' },
+];
+
+// V9 §3.10: format a comma-separated integer for the hero stat.
+function formatThousands(n) {
+  return String(n | 0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+let heroCountAnimStart = 0;
+let heroCountTarget = 0;
+function tickHeroCount() {
+  if (!statsPopup.classList.contains('show')) return;
+  const elapsed = (performance.now() / 1000) - heroCountAnimStart;
+  const dur = 0.9;
+  const u = Math.min(1, elapsed / dur);
+  // ease-out cubic
+  const e = 1 - Math.pow(1 - u, 3);
+  const v = Math.round(heroCountTarget * e);
+  statsHero.textContent = formatThousands(v);
+  if (u < 1) requestAnimationFrame(tickHeroCount);
+}
+
+function buildLadder() {
+  statsLadder.innerHTML = '';
+  for (const rung of LADDER_RUNGS) {
+    const enabled = rowEnabled(rung.key);
+    const unlocked = rowUnlocked(rung.key);
+    const el = document.createElement('button');
+    el.className = 'stats-rung';
+    el.dataset.row = rung.key;
+    if (unlocked) el.classList.add('unlocked');
+    if (enabled)  el.classList.add('enabled');
+    let stateText;
+    if (rung.key === 'home') stateText = 'ALWAYS ON';
+    else if (enabled) stateText = unlocked ? 'IN PLAY' : 'JUMPED AHEAD';
+    else stateText = unlocked ? 'TAP TO ENABLE' : 'TAP TO TRY';
+    el.innerHTML = `<span><b>${rung.label}</b> <span style="color:#6a7480; font-weight:400; margin-left:8px;">${rung.keys}</span></span><span class="rung-state">${stateText}</span>`;
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleLadderClick(rung.key);
+    });
+    statsLadder.appendChild(el);
+  }
+}
+
+// V9 §3.5: clicking a rung toggles the row in/out of play. Locked rungs can be jumped to.
+// Home is always on.
+function handleLadderClick(key) {
+  if (key === 'home') return;
+  const enabled = rowEnabled(key);
+  G.enabledRows[key] = !enabled;
+  // If turning ON a locked row, that's the "jump ahead" path — implicitly unlock the row
+  // by bumping phase up so auto-progression continues from there.
+  if (!enabled) {
+    const idx = ['home','top','bottom','num'].indexOf(key);
+    if (idx > G.phase) {
+      G.phase = idx;
+      // New row gets the current floor tier.
+      G.rowTiers[key] = Math.max(G.rowTiers[key] | 0, floorTier());
+    }
+  }
+  updatePool();
+  persist();
+  updateToggleVisuals();
+  buildLadder();
+}
+
+function buildMiniCollection() {
+  statsMiniCollection.innerHTML = '';
+  // V9 §3.5: the main letter-falling game counts as a game in the list.
+  // V9 §3.10: any zero-value stat is hidden — so a brand-new player sees only what they've played.
+  const entries = [
+    { id: 'main',   name: 'Main game',     plays: G.miniPlays.main   | 0, best: G.personalBestWPM ? `Best WPM ${Math.round(G.personalBestWPM)}` : null },
+    { id: 'runner', name: 'The Runner',    plays: G.miniPlays.runner | 0, best: (G.miniBest.runner | 0) > 0 ? `Best ${G.miniBest.runner} apples kept away` : null },
+    { id: 'tetris', name: 'Tetris',        plays: G.miniPlays.tetris | 0, best: (G.miniBest.tetris | 0) > 0 ? `Best ${G.miniBest.tetris} lines` : null },
+    { id: 'word',   name: 'Word Practice', plays: G.miniPlays.word   | 0, best: (G.miniBest.word   | 0) > 0 ? `Best ${G.miniBest.word} words` : null },
+  ];
+  let anyVisible = false;
+  for (const e of entries) {
+    // V9 §3.10: hide entries with zero plays entirely (no "Plays: 0" line).
+    if (e.plays === 0) continue;
+    anyVisible = true;
+    const card = document.createElement('div');
+    card.className = 'stats-mini-card';
+    const detail = e.best ? `Played ${e.plays} · ${e.best}` : `Played ${e.plays}`;
+    card.innerHTML = `<div class="mini-name">${e.name}</div><div class="mini-stat">${detail}</div>`;
+    statsMiniCollection.appendChild(card);
+  }
+  // V9 §3.10: hide the section heading when there's nothing to show.
+  statsMiniLabel.style.display = anyVisible ? '' : 'none';
+  statsMiniCollection.style.display = anyVisible ? '' : 'none';
+}
 
 function openStatsPopup() {
-  // Refresh values from current state.
-  statLiveWpm.textContent = Math.round(liveWPM());
-  statBestWpm.textContent = Math.round(G.personalBestWPM);
-  statTotalKeys.textContent = G.totalKeystrokes;
-  statSessions.textContent = G.sessionsPlayed;
-  statRow.textContent = ROW_LABEL[G.phase] || 'Home';
+  // V9 §3.5: hero count-up of total correct keystrokes, all time.
+  heroCountTarget = G.totalKeystrokes | 0;
+  // V9 §3.10: hide hero entirely if zero.
+  if (heroCountTarget <= 0) {
+    statsHero.style.display = 'none';
+    statsHeroLabel.style.display = 'none';
+  } else {
+    statsHero.style.display = '';
+    statsHeroLabel.style.display = '';
+    statsHero.textContent = '0';
+    heroCountAnimStart = performance.now() / 1000;
+    requestAnimationFrame(tickHeroCount);
+  }
+  buildLadder();
+  buildMiniCollection();
   statsPopup.classList.add('show');
   statsPopup.setAttribute('aria-hidden', 'false');
-  // Pause active session by recording the wall time we opened.
   if (G.statsOpenedAt === 0) G.statsOpenedAt = now();
 }
 
@@ -2680,7 +3391,6 @@ function closeStatsPopup() {
   if (!statsPopup.classList.contains('show')) return;
   statsPopup.classList.remove('show');
   statsPopup.setAttribute('aria-hidden', 'true');
-  // Resume active session: subtract paused interval from sessionStart.
   if (G.statsOpenedAt > 0 && G.sessionStart) {
     G.sessionStart += (now() - G.statsOpenedAt);
     G.bonusLastTick = now();
@@ -2688,7 +3398,10 @@ function closeStatsPopup() {
   G.statsOpenedAt = 0;
 }
 
-statsPopup.addEventListener('click', closeStatsPopup);
+// V9 §3.2: click-away dismisses (only when the click is on the dim backdrop, not inside the card).
+statsPopup.addEventListener('click', (e) => {
+  if (e.target === statsPopup) closeStatsPopup();
+});
 
 // ============================================================================
 // FOCUS BANNER  —  iframe deployment helper
@@ -2703,14 +3416,112 @@ focusBanner.addEventListener('click', hideFocusBanner);
 window.addEventListener('keydown', hideFocusBanner, { once: true });
 
 // ============================================================================
-// MOBILE DETECTION
+// MOBILE — V9 §3.12: "Play a game" launches touch-controlled unified Tetris only.
+// Other mini-games and the main letter-falling game stay hidden until a keyboard is detected.
 // ============================================================================
 const mobileRec = document.getElementById('mobile-rec');
 document.getElementById('mobile-continue').addEventListener('click', () => {
   mobileRec.classList.remove('show');
+  G.isMobile = true;
+  // Skip onboarding (no keyboard to drill on) and go straight to the unified Tetris with countdown.
+  G.state = 'bonus_countdown';
+  G.bonusKind = MINI.TETRIS;
+  G.bonusPauseStart = now();
+  G.bcStart = now();
+  G.countdown = {
+    phase: 'intro',
+    miniKind: MINI.TETRIS,
+    introStart: now(),
+    countStart: 0,
+    waitingForTap: false,
+    lastTickAt: -1,
+  };
+  Audio.unlock();
+  Audio.chime();
+  hideFocusBanner();
 });
 if (isTouch() && window.innerWidth < 900) {
   mobileRec.classList.add('show');
+  // Hide the focus banner on mobile — they can't tap a keyboard prompt anyway.
+  const fb = document.getElementById('focus-banner');
+  if (fb) fb.classList.add('hidden');
+}
+
+// V9 §3.12: on-screen Tetris controls for mobile. Drawn over the field; tappable.
+function drawTetrisMobileControls() {
+  // Layout: directional pad on the left, rotate on the right; close (×) top-right.
+  const a = G.arrow;
+  const padY = ARROW_FY + ARROW_FIELD_H + 80;
+  const btnSize = 64;
+  ctx.save();
+  ctx.font = '500 28px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Left
+  drawTouchButton(ARROW_FX - 200, padY, btnSize, '←');
+  // Right
+  drawTouchButton(ARROW_FX - 120, padY, btnSize, '→');
+  // Down (soft drop)
+  drawTouchButton(ARROW_FX - 160, padY + 80, btnSize, '↓');
+  // Rotate
+  drawTouchButton(ARROW_FX + ARROW_FIELD_W + 80, padY, btnSize, '↻');
+  // Close X (top-right)
+  drawTouchButton(VW - 80, 80, 48, '×');
+  ctx.restore();
+}
+
+function drawTouchButton(cx, cy, size, label) {
+  ctx.save();
+  ctx.strokeStyle = '#64c8ff';
+  ctx.fillStyle = 'rgba(100,200,255,0.06)';
+  ctx.lineWidth = 2;
+  const r = size / 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#dcdcdc';
+  ctx.fillText(label, cx, cy + 2);
+  ctx.restore();
+}
+
+// V9 §3.12: hit-test for the on-screen Tetris buttons + tap-on-piece (auto-place letter).
+function tetrisMobileTap(canvasX, canvasY) {
+  const a = G.arrow;
+  if (!a) return false;
+  const padY = ARROW_FY + ARROW_FIELD_H + 80;
+  const btnSize = 64;
+  const hits = [
+    { cx: ARROW_FX - 200, cy: padY,        r: btnSize / 2, action: 'left' },
+    { cx: ARROW_FX - 120, cy: padY,        r: btnSize / 2, action: 'right' },
+    { cx: ARROW_FX - 160, cy: padY + 80,   r: btnSize / 2, action: 'down' },
+    { cx: ARROW_FX + ARROW_FIELD_W + 80, cy: padY, r: btnSize / 2, action: 'rotate' },
+    { cx: VW - 80,        cy: 80,          r: 24,          action: 'close' },
+  ];
+  for (const h of hits) {
+    const dx = canvasX - h.cx, dy = canvasY - h.cy;
+    if (dx * dx + dy * dy <= h.r * h.r) {
+      if (h.action === 'left') tetrisKey({ key: 'ArrowLeft' });
+      else if (h.action === 'right') tetrisKey({ key: 'ArrowRight' });
+      else if (h.action === 'down') tetrisKey({ key: 'ArrowDown' });
+      else if (h.action === 'rotate') tetrisKey({ key: 'ArrowUp' });
+      else if (h.action === 'close') handleEscape();
+      return true;
+    }
+  }
+  // V9 §3.12: tapping the letter on a labeled piece triggers auto-place.
+  if (a.pieceLetter && !a.fanfare && !a.autoDrop && !a.toppedOut) {
+    // Find the piece bounds in canvas coords.
+    const minX = ARROW_FX + a.pieceX * ARROW_CELL;
+    const minY = ARROW_FY + a.pieceY * ARROW_CELL;
+    const maxX = minX + a.piece[0].length * ARROW_CELL;
+    const maxY = minY + a.piece.length * ARROW_CELL;
+    if (canvasX >= minX && canvasX <= maxX && canvasY >= minY && canvasY <= maxY) {
+      tetrisAutoPlace();
+      return true;
+    }
+  }
+  return false;
 }
 
 // ============================================================================
@@ -2777,6 +3588,9 @@ function boot() {
     G.personalBestWPM = saved.personalBestWPM;
     G.totalKeystrokes = saved.totalKeystrokes;
     G.sessionsPlayed = saved.sessionsPlayed;
+    G.enabledRows = saved.enabledRows;
+    G.miniPlays = saved.miniPlays;
+    G.miniBest = saved.miniBest;
   }
   applyFloor();
   updatePool();
