@@ -2167,8 +2167,10 @@ function keyKeepawayKey(ev) {
   if (r.bumpStop > t) return;
 
   if (ev.key === ' ' || ev.key === 'Spacebar') {
-    // V10 §3.7: spacebar bounces the NEAREST in-range apple upward — no longer jumps the fox.
-    // Range: 30 to 280 px ahead of the fox. No cooldown. Works on labeled and unlabeled apples.
+    // V10 (round 2): spacebar bounces the NEAREST in-range apple — a DEFERMENT, not an elimination.
+    // The apple lands back on the track ahead of the fox and resumes conveyor motion, so the player
+    // has to deal with it again (type it, bounce it again, or get caught). Only typed apples count
+    // toward the cleared/kept-away score.
     const candidates = r.apples.filter(o => !o.cleared && !o.bouncing && o.x > r.charX + KEY_KEEPAWAY_BOUNCE_RANGE_MIN && o.x < r.charX + KEY_KEEPAWAY_BOUNCE_RANGE_MAX);
     if (candidates.length === 0) {
       // No apple in range — press does nothing. Not a penalty.
@@ -2184,7 +2186,6 @@ function keyKeepawayKey(ev) {
     nearest.bounceFromX = nearest.x;
     nearest.bounceY = 0;
     nearest.glowUntil = t + 0.30;
-    r.cleared += 1;
     r.bounced += 1;
     Audio.play();
     return;
@@ -2231,9 +2232,10 @@ function keyKeepawayUpdate() {
 
   r.runFrame += dt * 8;
 
-  // V10 §3.7: apple movement. Two trajectories:
+  // V10 (round 2): apple movement. Two trajectories:
   //   - Conveyor (default): apple drifts left along the track; fox catches if it reaches.
-  //   - Bouncing: apple follows a parabolic arc up-and-forward over the fox; cannot be caught.
+  //   - Bouncing: apple follows a parabolic arc up-and-forward over the fox; cannot be caught
+  //     during the arc; lands back on the track ahead of the fox and resumes conveyor motion.
   for (let i = r.apples.length - 1; i >= 0; i--) {
     const o = r.apples[i];
     if (o.bouncing) {
@@ -2242,8 +2244,10 @@ function keyKeepawayUpdate() {
       o.x = o.bounceFromX + KEY_KEEPAWAY_BOUNCE_FORWARD * p;
       o.bounceY = -KEY_KEEPAWAY_BOUNCE_PEAK_HEIGHT * Math.sin(p * Math.PI);
       if (p >= 1) {
-        o.cleared = true; // arc complete — apple is kept away.
+        // V10 (round 2): arc complete — apple lands on the track ahead of the fox and resumes
+        // conveyor motion. Bounce is a deferment; apple stays in play.
         o.bouncing = false;
+        o.bounceY = 0;
       }
     } else {
       o.x -= speed * dt;
@@ -2499,7 +2503,7 @@ function keyKeepawayDraw() {
   if (!r.gameOver) {
     ctx.fillText('SPACE TO BOUNCE  ·  TYPE THE LETTER TO BLOW IT UP', VW / 2, 60);
     ctx.font = '400 14px "SF Mono", Consolas, Menlo, monospace';
-    ctx.fillText(`KEPT AWAY: ${r.cleared}  (BOUNCED ${r.bounced} · TYPED ${r.blownUp})`, VW / 2, 84);
+    ctx.fillText(`KEPT AWAY: ${r.cleared}  ·  BOUNCED: ${r.bounced}`, VW / 2, 84);
   }
   ctx.restore();
 
