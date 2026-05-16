@@ -2473,8 +2473,8 @@ const ARROW_FIELD_H = ARROW_ROWS * ARROW_CELL;  // 576
 const ARROW_FX = Math.round((VW - ARROW_FIELD_W) / 2);
 const ARROW_FY = 140;
 
-// V8 §3.13: 1-in-4 pieces lettered; letter pool from currently-enabled rows in the main game (V9 §3.5).
-const ARROW_LETTERED_RATIO = 0.25;
+// V10 §3.4: ~1-in-3 pieces lettered (raised from V9's 1-in-4). Letter pool from currently-enabled rows.
+const ARROW_LETTERED_RATIO = 1/3;
 
 const TETRO = {
   I: [[1,1,1,1]],
