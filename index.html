@@ -2071,6 +2071,8 @@ function drawHintEsc() {
 // ============================================================================
 function keyKeepawayStart() {
   G.keyKeepaway = {
+    // V10 §3.7: apples may gain { bouncing, bounceStart, bounceFromX, bounceY, glowUntil }
+    // when the player presses SPACE within range. Bouncing apples cannot be caught or typed.
     startTime: now(),
     charX: 200,
     charY: 0,
@@ -2112,23 +2114,32 @@ function keyKeepawayKey(ev) {
   if (r.bumpStop > t) return;
 
   if (ev.key === ' ' || ev.key === 'Spacebar') {
-    if (!r.grounded) return;
-    r.charVy = -480;
-    r.grounded = false;
-    r.jumping = true;
-    Audio.play();
-    const nearest = r.apples.find(o => o.x > r.charX - 40 && o.x < r.charX + 220 && !o.cleared);
-    if (nearest) {
-      nearest.cleared = true;
-      r.cleared += 1;
-      r.jumped += 1;
+    // V10 §3.7: spacebar bounces the NEAREST in-range apple upward — no longer jumps the fox.
+    // Range: 30 to 280 px ahead of the fox. No cooldown. Works on labeled and unlabeled apples.
+    const candidates = r.apples.filter(o => !o.cleared && !o.bouncing && o.x > r.charX + 30 && o.x < r.charX + 280);
+    if (candidates.length === 0) {
+      // No apple in range — press does nothing. Not a penalty.
+      return;
     }
+    // Nearest = smallest distance to the fox (smallest o.x - r.charX since fox is left of apples).
+    let nearest = candidates[0];
+    for (let i = 1; i < candidates.length; i++) {
+      if (candidates[i].x - r.charX < nearest.x - r.charX) nearest = candidates[i];
+    }
+    nearest.bouncing = true;
+    nearest.bounceStart = t;
+    nearest.bounceFromX = nearest.x;
+    nearest.bounceY = 0;
+    nearest.glowUntil = t + 0.30;
+    r.cleared += 1;
+    r.jumped += 1;
+    Audio.play();
     return;
   }
 
   if (ev.key && ev.key.length === 1 && /[a-z0-9]/i.test(ev.key)) {
     const ch = ev.key.toLowerCase();
-    const target = r.apples.find(o => !o.cleared && o.label === ch && o.x > -20 && o.x < VW + 20);
+    const target = r.apples.find(o => !o.cleared && !o.bouncing && o.label === ch && o.x > -20 && o.x < VW + 20);
     if (target) {
       target.cleared = true;
       r.cleared += 1;
@@ -2178,23 +2189,39 @@ function keyKeepawayUpdate() {
 
   r.runFrame += dt * 8;
 
-  // Move apples; V9 §3.6: detect catch — fox bites and holds, round ends as catch.
+  // V10 §3.7: apple movement. Two trajectories:
+  //   - Conveyor (default): apple drifts left along the track; fox catches if it reaches.
+  //   - Bouncing: apple follows a parabolic arc up-and-forward over the fox; cannot be caught.
+  const BOUNCE_DURATION = 0.80;
+  const BOUNCE_PEAK_HEIGHT = 200;
+  const BOUNCE_FORWARD = 220;
   for (let i = r.apples.length - 1; i >= 0; i--) {
     const o = r.apples[i];
-    o.x -= speed * dt;
-    if (!o.cleared && !r.gameOver) {
-      const dx = o.x - r.charX;
-      if (dx <= 0 && dx > -28 && r.charY > -28) {
-        r.gameOver = true;
-        r.gameOverAt = t;
-        r.caughtApple = o;
-        r.caughtAt = t;
-        // V9 §3.6: crunch sound on catch — satisfying, not punitive.
-        Audio.crunch();
-        spawnParticles(o.x, VH * 0.55 - 16, 18, '#f6a06a');
+    if (o.bouncing) {
+      const age = t - o.bounceStart;
+      const p = Math.min(1, age / BOUNCE_DURATION);
+      o.x = o.bounceFromX + BOUNCE_FORWARD * p;
+      o.bounceY = -BOUNCE_PEAK_HEIGHT * Math.sin(p * Math.PI);
+      if (p >= 1) {
+        o.cleared = true; // arc complete — apple is kept away.
+        o.bouncing = false;
+      }
+    } else {
+      o.x -= speed * dt;
+      if (!o.cleared && !r.gameOver) {
+        const dx = o.x - r.charX;
+        if (dx <= 0 && dx > -28 && r.charY > -28) {
+          r.gameOver = true;
+          r.gameOverAt = t;
+          r.caughtApple = o;
+          r.caughtAt = t;
+          // V9 §3.6: crunch sound on catch — satisfying, not punitive.
+          Audio.crunch();
+          spawnParticles(o.x, VH * 0.55 - 16, 18, '#f6a06a');
+        }
       }
     }
-    if (o.x < -50) r.apples.splice(i, 1);
+    if (o.x < -50 || o.x > VW + 60) r.apples.splice(i, 1);
   }
 
   if (r.gameOver) { updateParticles(); return; }
@@ -2365,10 +2392,20 @@ function keyKeepawayDraw() {
     drawFox(cx, cy, r.runFrame);
   }
 
-  // V9 §3.6: apples instead of letter blocks.
+  // V10 §3.7: apples — render bouncing ones at their arc Y; the just-bounced one glows briefly.
   for (const o of r.apples) {
-    if (o.cleared) continue;
-    drawApple(o.x, groundY - 22, o.label, o.wobble || 0);
+    if (o.cleared && !o.bouncing) continue;
+    const ay = (groundY - 22) + (o.bounceY || 0);
+    if (o.glowUntil && now() < o.glowUntil) {
+      const glowProgress = (o.glowUntil - now()) / 0.30; // 1 → 0
+      ctx.save();
+      ctx.shadowColor = '#ffd166';
+      ctx.shadowBlur = 20 * glowProgress;
+      drawApple(o.x, ay, o.label, o.wobble || 0);
+      ctx.restore();
+    } else {
+      drawApple(o.x, ay, o.label, o.wobble || 0);
+    }
   }
 
   // Blasts (from typing a letter to keep an apple away)
