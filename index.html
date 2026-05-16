@@ -420,9 +420,6 @@ const BONUS_COUNTDOWN = 3.0;
 const WORD_PRACTICE_DURATION = 45.0;
 // V9 §3.9: universal 3-2-1 countdown before every mini-game starts.
 const COUNTDOWN_DURATION = 3.0;
-// V9 §3.8: the auto-place drop animation runs at 50% of V8's instant snap.
-// V8 snapped instantly; V9 animates the descent over this many seconds so the player can see it.
-const KEY_STACK_AUTOPLACE_DROP_DURATION = 0.50;
 
 // Field density
 const MAX_CONCURRENT_LETTERS = 3;
@@ -2590,8 +2587,8 @@ function keyStackStart() {
     rampStart: now(),
     bumpStop: 0,
     toppedOut: false,
-    // V9 §3.8: auto-place animation — descend over ~0.50s instead of snapping.
-    autoDrop: null,              // { shape, name, letter, fromX, fromY, toX, toY, start, duration }
+    // V10 (round 2): auto-place plays the optimal keystroke sequence one step at a time.
+    autoDrop: null,              // { phase:'rotate'|'lateral'|'drop', rotationsLeft, lateralTarget, dropTarget, name, letter, nextStepAt, stepInterval }
     // V9 §3.8: row-completion fanfare — double-blink, then explode.
     fanfare: null,               // { rows:[...], start, phase:'blink'|'explode', explodeUntil }
   };
@@ -2799,8 +2796,10 @@ function keyStackKey(ev) {
   }
 }
 
-// V9 §3.8: instead of snapping, animate the descent over KEY_STACK_AUTOPLACE_DROP_DURATION seconds
-// so the player can see *where* and *why* the piece is being placed.
+// V10 (round 2): auto-place plays out the optimal keystroke sequence one step at a time —
+// rotate N times (each rotation visible), then move horizontally one cell at a time,
+// then drop one row at a time. Each step takes a fixed interval so the motion looks
+// like the player typed those exact keys in rapid succession.
 function keyStackAutoPlace() {
   const a = G.arrow;
   const best = arrowFindBestPlacement(a.piece);
@@ -2811,20 +2810,25 @@ function keyStackAutoPlace() {
   G.scorePulseTime = now();
   if (a.pieceLetter) G.keyGlow[a.pieceLetter] = now();
   Audio.play();
-  // Capture the source position; the animation will lerp piece/X/Y to the target,
-  // then lock when complete.
+  // Figure out how many right-rotations from the current shape reach best.shape (0..3).
+  // arrowFindBestPlacement iterates rotations in spec order, so we recompute here.
+  let rotations = 0;
+  let testShape = a.piece;
+  const targetKey = JSON.stringify(best.shape);
+  for (let i = 0; i < 4; i++) {
+    if (JSON.stringify(testShape) === targetKey) { rotations = i; break; }
+    testShape = arrowRotate(testShape);
+  }
   a.autoDrop = {
-    shape: best.shape,
+    phase: 'rotate', // 'rotate' | 'lateral' | 'drop'
+    rotationsLeft: rotations,
+    lateralTarget: best.px,
+    dropTarget: best.py,
     name: a.pieceName,
     letter: a.pieceLetter,
-    fromX: a.pieceX, fromY: a.pieceY,
-    toX: best.px,    toY: best.py,
-    start: now(),
-    duration: KEY_STACK_AUTOPLACE_DROP_DURATION,
+    nextStepAt: now(), // first step fires immediately on next tick
+    stepInterval: 0.08, // 80ms per simulated keystroke
   };
-  // Snap rotation now so the visible shape matches the auto-rotated target shape
-  // immediately (the slide-and-fall reads as one continuous motion).
-  a.piece = best.shape;
 }
 
 function keyStackTickAutoDrop() {
@@ -2832,21 +2836,46 @@ function keyStackTickAutoDrop() {
   if (!a.autoDrop) return;
   const t = now();
   const ad = a.autoDrop;
-  const u = Math.min(1, (t - ad.start) / ad.duration);
-  // ease-in-quad — slow start, bottoms out at the target so the placement reads clearly
-  const e = u * u;
-  a.pieceX = ad.fromX + (ad.toX - ad.fromX) * e;
-  a.pieceY = ad.fromY + (ad.toY - ad.fromY) * e;
-  if (u >= 1) {
-    a.pieceX = ad.toX;
-    a.pieceY = ad.toY;
-    a.autoDrop = null;
-    // Final burst at the locked centroid for satisfying feedback.
-    const cx = ARROW_FX + (a.pieceX + a.piece[0].length / 2) * ARROW_CELL;
-    const cy = ARROW_FY + (a.pieceY + a.piece.length / 2) * ARROW_CELL;
-    spawnParticles(cx, cy, 18, MG_COLORS.tetro[a.pieceName] || C.cyan);
-    arrowLockPiece();
+  // Wait for the next-step time gate.
+  if (t < ad.nextStepAt) return;
+  ad.nextStepAt = t + ad.stepInterval;
+
+  if (ad.phase === 'rotate') {
+    if (ad.rotationsLeft > 0) {
+      const next = arrowRotate(a.piece);
+      // Only commit the rotation if it still fits where we are; otherwise skip and move on.
+      if (arrowCanFit(next, a.pieceX, a.pieceY)) {
+        a.piece = next;
+      }
+      ad.rotationsLeft -= 1;
+    }
+    if (ad.rotationsLeft === 0) ad.phase = 'lateral';
+    return;
   }
+
+  if (ad.phase === 'lateral') {
+    if (a.pieceX < ad.lateralTarget) {
+      if (arrowCanFit(a.piece, a.pieceX + 1, a.pieceY)) a.pieceX += 1;
+      else { ad.phase = 'drop'; return; }
+    } else if (a.pieceX > ad.lateralTarget) {
+      if (arrowCanFit(a.piece, a.pieceX - 1, a.pieceY)) a.pieceX -= 1;
+      else { ad.phase = 'drop'; return; }
+    }
+    if (a.pieceX === ad.lateralTarget) ad.phase = 'drop';
+    return;
+  }
+
+  // 'drop' phase
+  if (a.pieceY < ad.dropTarget && arrowCanFit(a.piece, a.pieceX, a.pieceY + 1)) {
+    a.pieceY += 1;
+    return;
+  }
+  // Done — finalize.
+  a.autoDrop = null;
+  const cx = ARROW_FX + (a.pieceX + a.piece[0].length / 2) * ARROW_CELL;
+  const cy = ARROW_FY + (a.pieceY + a.piece.length / 2) * ARROW_CELL;
+  spawnParticles(cx, cy, 18, MG_COLORS.tetro[ad.name] || C.cyan);
+  arrowLockPiece();
 }
 
 function keyStackTickFanfare() {
