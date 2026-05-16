@@ -361,7 +361,7 @@ const WORD_PRACTICE_DURATION = 45.0;
 const COUNTDOWN_DURATION = 3.0;
 // V9 §3.8: the auto-place drop animation runs at 50% of V8's instant snap.
 // V8 snapped instantly; V9 animates the descent over this many seconds so the player can see it.
-const TETRIS_AUTOPLACE_DROP_DURATION = 0.50;
+const KEY_STACK_AUTOPLACE_DROP_DURATION = 0.50;
 
 // Field density
 const MAX_CONCURRENT_LETTERS = 3;
@@ -405,14 +405,14 @@ const FINGER_CALLOUT_BURST = 12;
 const LS_KEY = 'keyboardCommanderV10';
 const LS_KEY_LEGACY_V9 = 'keyboardCommanderV9';
 
-// Mini-game IDs  (V9 §3.8: the two Tetris games are merged into one unified TETRIS.)
-const MINI = { WORD: 'word', RUNNER: 'runner', TETRIS: 'tetris' };
+// Mini-game IDs  (V9 §3.8: the two prior tetris-style games are merged into one unified KEY_STACK.)
+const MINI = { WORD: 'word', RUNNER: 'runner', KEY_STACK: 'keyStack' };
 
-// V7 §3.3 / V9 §3.8: intro card text per mini-game. V9 unifies the Tetris card.
+// V7 §3.3 / V9 §3.8: intro card text per mini-game. V9 unifies the Key Stack card.
 const MINI_INTROS = {
   word:    { title: 'Word Practice',  lines: ['Type the word you see — letter by letter.', 'Words appear one after another for 45 seconds.'] },
   runner:  { title: 'The Runner',     lines: ['The fox is chasing falling apples.', 'Press SPACE to jump or type the letter to keep an apple away.', 'Press SPACE or click to begin.'] },
-  tetris:  { title: 'Tetris',         lines: ['Use the ARROW KEYS to move and rotate the piece.', 'Some pieces show a letter — type it for an auto-perfect place.'] },
+  keyStack:  { title: 'Tetris',         lines: ['Use the ARROW KEYS to move and rotate the piece.', 'Some pieces show a letter — type it for an auto-perfect place.'] },
 };
 const INTRO_DURATION = 3.0; // V7 §3.3: 2-3 seconds before the round starts
 
@@ -476,8 +476,17 @@ const Storage = (() => {
       // null entries mean "follow auto-progression"; explicit true/false overrides.
       enabledRows: raw.enabledRows || { home: null, top: null, bottom: null, num: null },
       // V9 §3.5: expandable mini-game collection — per-game plays and bests.
-      miniPlays: raw.miniPlays || { word: 0, runner: 0, tetris: 0, main: 0 },
-      miniBest: raw.miniBest || { word: 0, runner: 0, tetris: 0 }, // word=count, runner=apples kept away, tetris=lines
+      // V10: legacy V9 stored these under `tetris`; fold into `keyStack` on read.
+      miniPlays: (() => {
+        const m = raw.miniPlays || { word: 0, runner: 0, keyStack: 0, main: 0 };
+        if (m.tetris && !m.keyStack) { m.keyStack = m.tetris; delete m.tetris; }
+        return m;
+      })(),
+      miniBest: (() => {
+        const m = raw.miniBest || { word: 0, runner: 0, keyStack: 0 };
+        if (m.tetris && !m.keyStack) { m.keyStack = m.tetris; delete m.tetris; }
+        return m;
+      })(),
     };
   }
   function save(state) {
@@ -617,8 +626,8 @@ const Audio = (() => {
       }, 60);
     } catch(e) {}
   }
-  // V9 §3.8: Tetris row-clear fanfare — three ascending pulses synced with the double-blink + explode.
-  function tetrisClear() {
+  // V9 §3.8: Key Stack row-clear fanfare — three ascending pulses synced with the double-blink + explode.
+  function keyStackClear() {
     beep(523, 0.10, 0.05);
     setTimeout(() => beep(659, 0.10, 0.05), 110);
     setTimeout(() => beep(880, 0.18, 0.07), 230);
@@ -627,7 +636,7 @@ const Audio = (() => {
   function countdownTick(isGo) {
     beep(isGo ? 880 : 660, isGo ? 0.16 : 0.08, isGo ? 0.07 : 0.04);
   }
-  return { init, unlock, play, beep, chime, softCue, wordComplete, crunch, tetrisClear, countdownTick };
+  return { init, unlock, play, beep, chime, softCue, wordComplete, crunch, keyStackClear, countdownTick };
 })();
 
 // ============================================================================
@@ -719,13 +728,13 @@ const G = {
   // V9 §3.5: ladder override — null = follow auto-progression; true/false overrides.
   enabledRows: { home: null, top: null, bottom: null, num: null },
   // V9 §3.5: mini-game collection.
-  miniPlays: { word: 0, runner: 0, tetris: 0, main: 0 },
-  miniBest: { word: 0, runner: 0, tetris: 0 },
+  miniPlays: { word: 0, runner: 0, keyStack: 0, main: 0 },
+  miniBest: { word: 0, runner: 0, keyStack: 0 },
 
   // V9 §3.9: countdown state (3-2-1 before every mini-game).
   countdown: null, // { startTime, miniKind, waitingForTap }
 
-  // V9 §3.12: mobile mode — true on phones/tablets without keyboard; locks to tetris-only.
+  // V9 §3.12: mobile mode — true on phones/tablets without keyboard; locks to key-stack-only.
   isMobile: false,
 
   // V8 §3.6: finger callout wave state
@@ -737,7 +746,7 @@ const G = {
   statsOpenedAt: 0,
 
   // Session
-  state: 'onboarding', // onboarding | playing | menu | bonus_countdown | mini_word | mini_runner | mini_tetris | end
+  state: 'onboarding', // onboarding | playing | menu | bonus_countdown | mini_word | mini_runner | mini_keyStack | end
   obStep: 0,
   sessionStart: 0,
   correctChars: 0,
@@ -1678,8 +1687,8 @@ function startBonusCountdown() {
   G.bcStart = now();
   G.bonusAccum = 0;
   G.state = 'bonus_countdown';
-  // V9 §3.8: bonus rotation now has three mini-games (Tetris unified).
-  const choices = [MINI.WORD, MINI.RUNNER, MINI.TETRIS];
+  // V9 §3.8: bonus rotation now has three mini-games (Key Stack unified).
+  const choices = [MINI.WORD, MINI.RUNNER, MINI.KEY_STACK];
   G.bonusKind = choices[Math.floor(Math.random() * choices.length)];
   // V9 §3.9: Runner waits for tap before countdown; others auto-start countdown after the intro card.
   G.countdown = {
@@ -1698,7 +1707,7 @@ function bcUpdate() {
   const cd = G.countdown;
   if (!cd) { return; }
   if (cd.phase === 'intro') {
-    // V9 §3.9: Tetris and Word auto-advance after a short read (INTRO_DURATION); Runner waits for a tap.
+    // V9 §3.9: Key Stack and Word auto-advance after a short read (INTRO_DURATION); Runner waits for a tap.
     if (!cd.waitingForTap && t - cd.introStart >= INTRO_DURATION) {
       cd.phase = 'count';
       cd.countStart = t;
@@ -1831,14 +1840,14 @@ function bcDraw() {
 function startBonus(kind) {
   if (kind === MINI.WORD) wordStart();
   else if (kind === MINI.RUNNER) runnerStart();
-  else if (kind === MINI.TETRIS) tetrisStart();
+  else if (kind === MINI.KEY_STACK) keyStackStart();
 }
 
 function startRandomMiniGame() {
-  // V9 §3.8: bonus rotation has three mini-games (Tetris unified).
+  // V9 §3.8: bonus rotation has three mini-games (Key Stack unified).
   G.bonusPauseStart = now();
   G.bonusAccum = 0;
-  const choices = G.isMobile ? [MINI.TETRIS] : [MINI.WORD, MINI.RUNNER, MINI.TETRIS];
+  const choices = G.isMobile ? [MINI.KEY_STACK] : [MINI.WORD, MINI.RUNNER, MINI.KEY_STACK];
   G.bonusKind = choices[Math.floor(Math.random() * choices.length)];
   G.bcStart = now();
   G.state = 'bonus_countdown';
@@ -1862,7 +1871,7 @@ function resumePlayAfterBonus() {
   G.bonusPauseStart = 0;
   G.bonusLastTick = t;
   G.bonusAccum = 0;
-  // V9 §3.12: on mobile there's no main game — kick off another Tetris round instead of opening the menu.
+  // V9 §3.12: on mobile there's no main game — kick off another Key Stack round instead of opening the menu.
   if (G.isMobile) {
     startRandomMiniGame();
     return;
@@ -2442,7 +2451,7 @@ function runnerDraw() {
 }
 
 // ============================================================================
-// MINI-GAME 3: TETRIS — V9 §3.8: unified game; arrows always active; ~1-in-4 lettered;
+// MINI-GAME 3: KEY STACK — V9 §3.8: unified game; arrows always active; ~1-in-4 lettered;
 // row-completion double-blink then explode; auto-place drop animates over ~0.50s.
 // ============================================================================
 const ARROW_COLS = 10, ARROW_ROWS = 18;
@@ -2466,7 +2475,7 @@ const TETRO = {
 };
 const TETRO_NAMES = Object.keys(TETRO);
 
-function tetrisStart() {
+function keyStackStart() {
   G.arrow = {
     startTime: now(),
     grid: Array.from({length: ARROW_ROWS}, () => Array(ARROW_COLS).fill(0)),
@@ -2483,11 +2492,11 @@ function tetrisStart() {
     // V9 §3.8: row-completion fanfare — double-blink, then explode.
     fanfare: null,               // { rows:[...], start, phase:'blink'|'explode', explodeUntil }
   };
-  tetrisNewPiece();
-  G.state = 'mini_tetris';
+  keyStackNewPiece();
+  G.state = 'mini_keyStack';
 }
 
-function tetrisNewPiece() {
+function keyStackNewPiece() {
   const a = G.arrow;
   const elapsed = now() - a.rampStart;
   const ramp = Math.min(1, elapsed / 12.0);
@@ -2627,14 +2636,14 @@ function arrowLockPiece() {
       phase: 'blink',
       explodeUntil: 0,
     };
-    Audio.tetrisClear();
+    Audio.keyStackClear();
     a.cleared += completedRows.length;
     // Hold spawning the next piece until the fanfare completes.
     a.piece = [[0]]; // empty placeholder so draw doesn't render anything during fanfare
     a.pieceLetter = null;
     return;
   }
-  const fits = tetrisNewPiece();
+  const fits = keyStackNewPiece();
   if (!fits) {
     a.toppedOut = true;
     a.bumpStop = now() + 1.4;
@@ -2642,7 +2651,7 @@ function arrowLockPiece() {
 }
 
 // V9 §3.8: after the fanfare finishes, remove the cleared rows, drop everything above, and spawn the next piece.
-function tetrisCommitFanfareClear() {
+function keyStackCommitFanfareClear() {
   const a = G.arrow;
   if (!a.fanfare) return;
   // Sort descending so splice doesn't shift indices we still need.
@@ -2652,14 +2661,14 @@ function tetrisCommitFanfareClear() {
     a.grid.unshift(Array(ARROW_COLS).fill(0));
   }
   a.fanfare = null;
-  const fits = tetrisNewPiece();
+  const fits = keyStackNewPiece();
   if (!fits) {
     a.toppedOut = true;
     a.bumpStop = now() + 1.4;
   }
 }
 
-function tetrisKey(ev) {
+function keyStackKey(ev) {
   const a = G.arrow;
   if (a.toppedOut) return;
   if (a.bumpStop > now()) return;
@@ -2670,7 +2679,7 @@ function tetrisKey(ev) {
   if (a.pieceLetter && ev.key && ev.key.length === 1) {
     const ch = ev.key.toLowerCase();
     if (ch === a.pieceLetter) {
-      tetrisAutoPlace();
+      keyStackAutoPlace();
       return;
     }
   }
@@ -2687,9 +2696,9 @@ function tetrisKey(ev) {
   }
 }
 
-// V9 §3.8: instead of snapping, animate the descent over TETRIS_AUTOPLACE_DROP_DURATION seconds
+// V9 §3.8: instead of snapping, animate the descent over KEY_STACK_AUTOPLACE_DROP_DURATION seconds
 // so the player can see *where* and *why* the piece is being placed.
-function tetrisAutoPlace() {
+function keyStackAutoPlace() {
   const a = G.arrow;
   const best = arrowFindBestPlacement(a.piece);
   if (!best) return;
@@ -2708,14 +2717,14 @@ function tetrisAutoPlace() {
     fromX: a.pieceX, fromY: a.pieceY,
     toX: best.px,    toY: best.py,
     start: now(),
-    duration: TETRIS_AUTOPLACE_DROP_DURATION,
+    duration: KEY_STACK_AUTOPLACE_DROP_DURATION,
   };
   // Snap rotation now so the visible shape matches the auto-rotated target shape
   // immediately (the slide-and-fall reads as one continuous motion).
   a.piece = best.shape;
 }
 
-function tetrisTickAutoDrop() {
+function keyStackTickAutoDrop() {
   const a = G.arrow;
   if (!a.autoDrop) return;
   const t = now();
@@ -2737,7 +2746,7 @@ function tetrisTickAutoDrop() {
   }
 }
 
-function tetrisTickFanfare() {
+function keyStackTickFanfare() {
   const a = G.arrow;
   if (!a.fanfare) return;
   const t = now();
@@ -2758,18 +2767,18 @@ function tetrisTickFanfare() {
       }
     }
   } else if (a.fanfare.phase === 'explode' && t >= a.fanfare.explodeUntil) {
-    tetrisCommitFanfareClear();
+    keyStackCommitFanfareClear();
   }
 }
 
-function tetrisUpdate() {
+function keyStackUpdate() {
   const a = G.arrow;
   const t = now();
-  if (a.toppedOut && t >= a.bumpStop) { tetrisFinish(); return; }
+  if (a.toppedOut && t >= a.bumpStop) { keyStackFinish(); return; }
   if (a.bumpStop > t) { updateParticles(); return; }
   // V9 §3.8: advance the row-clear fanfare or the animated auto-place drop; gravity pauses during these.
-  if (a.fanfare) { tetrisTickFanfare(); updateParticles(); return; }
-  if (a.autoDrop) { tetrisTickAutoDrop(); updateParticles(); return; }
+  if (a.fanfare) { keyStackTickFanfare(); updateParticles(); return; }
+  if (a.autoDrop) { keyStackTickAutoDrop(); updateParticles(); return; }
   const dt = Math.min(0.05, (performance.now() - lastFrameTime) / 1000);
   a.fallAccum += dt;
   if (a.fallAccum >= a.fallInterval) {
@@ -2780,18 +2789,18 @@ function tetrisUpdate() {
   updateParticles();
 }
 
-function tetrisFinish() {
+function keyStackFinish() {
   // V9 §3.5: record play + best for the mini-game collection.
-  G.miniPlays.tetris = (G.miniPlays.tetris | 0) + 1;
-  G.miniBest.tetris = Math.max(G.miniBest.tetris | 0, G.arrow.cleared);
+  G.miniPlays.keyStack = (G.miniPlays.keyStack | 0) + 1;
+  G.miniBest.keyStack = Math.max(G.miniBest.keyStack | 0, G.arrow.cleared);
   persist();
   setMilestone(`Nice! ${G.arrow.cleared} lines cleared`);
   resumePlayAfterBonus();
 }
 
-// V9 §3.8: unified Tetris draw. Letter rendered in main-game WHITE inside the bottom-left
+// V9 §3.8: unified Key Stack draw. Letter rendered in main-game WHITE inside the bottom-left
 // square of the piece's bounding box. Row-completion: double-blink, then explode.
-function tetrisDraw() {
+function keyStackDraw() {
   const a = G.arrow;
   ctx.fillStyle = MG_COLORS.arrowBg;
   ctx.fillRect(0, 0, VW, VH);
@@ -2905,7 +2914,7 @@ function tetrisDraw() {
   ctx.restore();
 
   // V9 §3.12: mobile control buttons + close X.
-  if (G.isMobile) drawTetrisMobileControls();
+  if (G.isMobile) drawKeyStackMobileControls();
 
   // Top-out announcement
   if (a.toppedOut) {
@@ -2925,7 +2934,7 @@ function tetrisDraw() {
 }
 
 // Forward-declaration placeholder; defined later alongside touch handlers.
-function drawTetrisMobileControls() { /* defined in mobile section */ }
+function drawKeyStackMobileControls() { /* defined in mobile section */ }
 
 // ============================================================================
 // END SCREEN (after End For Now)
@@ -2951,10 +2960,10 @@ function handleEscape() {
   if (s === 'menu') return;
   // V9 §3.12: on mobile, "escape" returns to the mobile entry screen — never the keyboard-only menu.
   if (G.isMobile) {
-    // Persist tetris stats if we're inside it.
-    if (s === 'mini_tetris' && G.arrow) {
-      G.miniPlays.tetris = (G.miniPlays.tetris | 0) + 1;
-      G.miniBest.tetris = Math.max(G.miniBest.tetris | 0, G.arrow.cleared | 0);
+    // Persist key stack stats if we're inside it.
+    if (s === 'mini_keyStack' && G.arrow) {
+      G.miniPlays.keyStack = (G.miniPlays.keyStack | 0) + 1;
+      G.miniBest.keyStack = Math.max(G.miniBest.keyStack | 0, G.arrow.cleared | 0);
       persist();
     }
     G.state = 'onboarding'; // keep state inert until they tap Play a game again
@@ -2973,10 +2982,10 @@ function handleEscape() {
     openMenu('pause');
     return;
   }
-  if (s === 'mini_word' || s === 'mini_runner' || s === 'mini_tetris') {
+  if (s === 'mini_word' || s === 'mini_runner' || s === 'mini_keyStack') {
     if (s === 'mini_word') wordFinish();
     else if (s === 'mini_runner') runnerFinish();
-    else if (s === 'mini_tetris') tetrisFinish();
+    else if (s === 'mini_keyStack') keyStackFinish();
     G.pauseTime = now();
     openMenu('pause');
     return;
@@ -3030,7 +3039,7 @@ function onKeyDown(ev) {
   else if (s === 'menu') menuKey(ev);
   else if (s === 'mini_word') wordKey(ev);
   else if (s === 'mini_runner') runnerKey(ev);
-  else if (s === 'mini_tetris') tetrisKey(ev);
+  else if (s === 'mini_keyStack') keyStackKey(ev);
   // V9 §3.9: Runner intro accepts space to advance into the countdown.
   else if (s === 'bonus_countdown' && (ev.key === ' ' || ev.key === 'Spacebar' || ev.key === 'Enter')) {
     bcAdvanceFromTap();
@@ -3098,8 +3107,8 @@ function onCanvasPointer(ev) {
     runnerKey({ key: ' ' });
     return;
   }
-  if (s === 'mini_tetris') {
-    tetrisMobileTap(pt.x, pt.y);
+  if (s === 'mini_keyStack') {
+    keyStackMobileTap(pt.x, pt.y);
     return;
   }
   if (s === 'end') {
@@ -3113,20 +3122,20 @@ function onCanvasPointer(ev) {
 canvas.addEventListener('click', onCanvasPointer);
 canvas.addEventListener('touchstart', (ev) => {
   ev.preventDefault();
-  if (G.state === 'mini_tetris') {
+  if (G.state === 'mini_keyStack') {
     lastSwipeStart = canvasFromEvent(ev);
   }
   onCanvasPointer(ev);
 }, { passive: false });
-// V9 §3.12: swipe-to-move in Tetris when the touch slides far enough horizontally.
+// V9 §3.12: swipe-to-move in Key Stack when the touch slides far enough horizontally.
 canvas.addEventListener('touchmove', (ev) => {
   ev.preventDefault();
-  if (G.state !== 'mini_tetris' || !lastSwipeStart) return;
+  if (G.state !== 'mini_keyStack' || !lastSwipeStart) return;
   const pt = canvasFromEvent(ev);
   const dx = pt.x - lastSwipeStart.x;
   const threshold = ARROW_CELL;
   if (Math.abs(dx) >= threshold) {
-    tetrisKey({ key: dx > 0 ? 'ArrowRight' : 'ArrowLeft' });
+    keyStackKey({ key: dx > 0 ? 'ArrowRight' : 'ArrowLeft' });
     lastSwipeStart = pt; // allow continuous sliding
   }
 }, { passive: false });
@@ -3147,7 +3156,7 @@ function update() {
   else if (s === 'bonus_countdown') bcUpdate();
   else if (s === 'mini_word') wordUpdate();
   else if (s === 'mini_runner') runnerUpdate();
-  else if (s === 'mini_tetris') tetrisUpdate();
+  else if (s === 'mini_keyStack') keyStackUpdate();
 }
 
 function draw() {
@@ -3169,7 +3178,7 @@ function draw() {
   else if (s === 'bonus_countdown') bcDraw();
   else if (s === 'mini_word') wordDraw();
   else if (s === 'mini_runner') runnerDraw();
-  else if (s === 'mini_tetris') tetrisDraw();
+  else if (s === 'mini_keyStack') keyStackDraw();
   else if (s === 'end') endDraw();
 }
 
@@ -3347,7 +3356,7 @@ function buildMiniCollection() {
   const entries = [
     { id: 'main',   name: 'Main game',     plays: G.miniPlays.main   | 0, best: G.personalBestWPM ? `Best WPM ${Math.round(G.personalBestWPM)}` : null },
     { id: 'runner', name: 'The Runner',    plays: G.miniPlays.runner | 0, best: (G.miniBest.runner | 0) > 0 ? `Best ${G.miniBest.runner} apples kept away` : null },
-    { id: 'tetris', name: 'Tetris',        plays: G.miniPlays.tetris | 0, best: (G.miniBest.tetris | 0) > 0 ? `Best ${G.miniBest.tetris} lines` : null },
+    { id: 'keyStack', name: 'Tetris',        plays: G.miniPlays.keyStack | 0, best: (G.miniBest.keyStack | 0) > 0 ? `Best ${G.miniBest.keyStack} lines` : null },
     { id: 'word',   name: 'Word Practice', plays: G.miniPlays.word   | 0, best: (G.miniBest.word   | 0) > 0 ? `Best ${G.miniBest.word} words` : null },
   ];
   let anyVisible = false;
@@ -3416,21 +3425,21 @@ focusBanner.addEventListener('click', hideFocusBanner);
 window.addEventListener('keydown', hideFocusBanner, { once: true });
 
 // ============================================================================
-// MOBILE — V9 §3.12: "Play a game" launches touch-controlled unified Tetris only.
+// MOBILE — V9 §3.12: "Play a game" launches touch-controlled unified Key Stack only.
 // Other mini-games and the main letter-falling game stay hidden until a keyboard is detected.
 // ============================================================================
 const mobileRec = document.getElementById('mobile-rec');
 document.getElementById('mobile-continue').addEventListener('click', () => {
   mobileRec.classList.remove('show');
   G.isMobile = true;
-  // Skip onboarding (no keyboard to drill on) and go straight to the unified Tetris with countdown.
+  // Skip onboarding (no keyboard to drill on) and go straight to the unified Key Stack with countdown.
   G.state = 'bonus_countdown';
-  G.bonusKind = MINI.TETRIS;
+  G.bonusKind = MINI.KEY_STACK;
   G.bonusPauseStart = now();
   G.bcStart = now();
   G.countdown = {
     phase: 'intro',
-    miniKind: MINI.TETRIS,
+    miniKind: MINI.KEY_STACK,
     introStart: now(),
     countStart: 0,
     waitingForTap: false,
@@ -3447,8 +3456,8 @@ if (isTouch() && window.innerWidth < 900) {
   if (fb) fb.classList.add('hidden');
 }
 
-// V9 §3.12: on-screen Tetris controls for mobile. Drawn over the field; tappable.
-function drawTetrisMobileControls() {
+// V9 §3.12: on-screen Key Stack controls for mobile. Drawn over the field; tappable.
+function drawKeyStackMobileControls() {
   // Layout: directional pad on the left, rotate on the right; close (×) top-right.
   const a = G.arrow;
   const padY = ARROW_FY + ARROW_FIELD_H + 80;
@@ -3485,8 +3494,8 @@ function drawTouchButton(cx, cy, size, label) {
   ctx.restore();
 }
 
-// V9 §3.12: hit-test for the on-screen Tetris buttons + tap-on-piece (auto-place letter).
-function tetrisMobileTap(canvasX, canvasY) {
+// V9 §3.12: hit-test for the on-screen Key Stack buttons + tap-on-piece (auto-place letter).
+function keyStackMobileTap(canvasX, canvasY) {
   const a = G.arrow;
   if (!a) return false;
   const padY = ARROW_FY + ARROW_FIELD_H + 80;
@@ -3501,10 +3510,10 @@ function tetrisMobileTap(canvasX, canvasY) {
   for (const h of hits) {
     const dx = canvasX - h.cx, dy = canvasY - h.cy;
     if (dx * dx + dy * dy <= h.r * h.r) {
-      if (h.action === 'left') tetrisKey({ key: 'ArrowLeft' });
-      else if (h.action === 'right') tetrisKey({ key: 'ArrowRight' });
-      else if (h.action === 'down') tetrisKey({ key: 'ArrowDown' });
-      else if (h.action === 'rotate') tetrisKey({ key: 'ArrowUp' });
+      if (h.action === 'left') keyStackKey({ key: 'ArrowLeft' });
+      else if (h.action === 'right') keyStackKey({ key: 'ArrowRight' });
+      else if (h.action === 'down') keyStackKey({ key: 'ArrowDown' });
+      else if (h.action === 'rotate') keyStackKey({ key: 'ArrowUp' });
       else if (h.action === 'close') handleEscape();
       return true;
     }
@@ -3517,7 +3526,7 @@ function tetrisMobileTap(canvasX, canvasY) {
     const maxX = minX + a.piece[0].length * ARROW_CELL;
     const maxY = minY + a.piece.length * ARROW_CELL;
     if (canvasX >= minX && canvasX <= maxX && canvasY >= minY && canvasY <= maxY) {
-      tetrisAutoPlace();
+      keyStackAutoPlace();
       return true;
     }
   }
