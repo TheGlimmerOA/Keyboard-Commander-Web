@@ -71,14 +71,22 @@
     cursor: pointer;
   }
   #mem-label:hover { color: #9be0ff; text-shadow: 0 0 8px rgba(100,200,255,0.4); }
+  /* V10: "Speed" label replaces the Slow/Fast button pair. */
+  #speed-label {
+    color: #96a0aa;
+    letter-spacing: 0.04em;
+  }
   /* V9 §3.4: live tier strip inside the speed control. */
+  /* V10: cells are clickable — cursor pointer and a hover scale signal interactivity. */
   #tier-strip {
     display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle;
   }
   #tier-strip .tier-cell {
-    width: 14px; height: 6px; border-radius: 2px; background: #373a41; transition: background 0.12s;
+    width: 14px; height: 6px; border-radius: 2px; background: #373a41; transition: background 0.12s, transform 0.12s;
+    cursor: pointer;
   }
   #tier-strip .tier-cell.on { background: #64c8ff; }
+  #tier-strip .tier-cell:hover { transform: scaleY(1.5); }
   /* V9 §3.3: unified menu/dialog style — large monospace, subtle color, visible outline, responsive buttons. */
   .v9-dialog-button {
     background: transparent;
@@ -278,9 +286,9 @@
   <div id="stage">
     <canvas id="game" width="1280" height="800"></canvas>
     <div id="toggle-bar">
-      <div class="toggle" id="speed-toggle" aria-label="Speed toggle with live tier indicator">
-        <span class="seg on" id="seg-slow">Slow</span><span class="seg" id="seg-fast">Fast</span>
-        <span id="tier-strip" aria-label="Current speed tier"></span>
+      <div class="toggle" id="speed-toggle" aria-label="Speed control — click a bar to set the floor tier">
+        <span id="speed-label">Speed</span>
+        <span id="tier-strip" aria-label="Speed tier bars — click to set"></span>
       </div>
       <div class="toggle" id="memory-toggle" aria-label="Settings">
         <span id="mem-label">Settings</span>
@@ -523,7 +531,12 @@ const Storage = (() => {
     const raw = readRaw();
     return {
       memoryEnabled: true, // V10 §3.2: always ON on page load; not persisted across reloads
-      slowFast: raw.slowFast === 'fast' ? 'fast' : 'slow',
+      // V10: floorTier replaces the binary slowFast string. Migrate legacy 'slow'/'fast' → 0/(TIER_COUNT-1).
+      floorTier: (() => {
+        if (typeof raw.floorTier === 'number') return Math.max(0, Math.min(TIER_COUNT - 1, raw.floorTier | 0));
+        if (raw.slowFast === 'fast') return TIER_COUNT - 1;
+        return 0;
+      })(),
       phase: typeof raw.phase === 'number' ? raw.phase : 0,
       rowTiers: raw.rowTiers || { home: 0, top: 0, bottom: 0, num: 0 },
       keyStats: raw.keyStats || {},
@@ -556,7 +569,7 @@ const Storage = (() => {
       return;
     }
     writeRaw({
-      slowFast: state.slowFast,
+      floorTier: state.floorTier,
       phase: state.phase,
       rowTiers: state.rowTiers,
       keyStats: state.keyStats,
@@ -777,7 +790,7 @@ const KB = (() => {
 const G = {
   // Persistent
   memoryEnabled: true,
-  slowFast: 'slow',
+  floorTier: 0, // V10: integer 0..TIER_COUNT-1, click a Speed bar to set
   phase: 0,
   rowTiers: { home: 0, top: 0, bottom: 0, num: 0 },
   keyStats: {}, // { ch: { c, t } }
@@ -943,25 +956,20 @@ function speedFor(text) {
   return v;
 }
 
-function floorTier() {
-  return G.slowFast === 'slow' ? 0 : TIER_COUNT - 1;
-}
-
+// V10: floor tier is now an integer 0..TIER_COUNT-1 controlled by clicking the Speed bars.
+// Clicking a bar resets every row to exactly that tier; auto-progression can later lift
+// individual rows above the floor (symmetric to V9 Slow which reset all rows to 0).
 function applyFloor() {
-  const f = floorTier();
-  if (G.slowFast === 'slow') {
-    // Slow drops every row to the new floor (V4 left-arrow behavior carried over)
-    for (const k of ROW_KEYS) G.rowTiers[k] = 0;
-  } else {
-    // Fast raises every row to the floor (rows already above stay)
-    for (const k of ROW_KEYS) G.rowTiers[k] = Math.max(G.rowTiers[k], f);
+  const f = G.floorTier | 0;
+  for (const k of ROW_KEYS) {
+    G.rowTiers[k] = f;
   }
 }
 
 function persist() {
   // V10 §3.2: memoryEnabled is session-local and no longer persisted; callers gate persist() on it.
   Storage.save({
-    slowFast: G.slowFast,
+    floorTier: G.floorTier,
     phase: G.phase,
     rowTiers: G.rowTiers,
     keyStats: G.keyStats,
@@ -1328,7 +1336,7 @@ function triggerExpansion() {
   G.pendingPhase = G.phase + 1;
   // New row inherits floor
   const newKey = ROW_KEYS[G.phase + 1];
-  G.rowTiers[newKey] = Math.max(G.rowTiers[newKey], floorTier());
+  G.rowTiers[newKey] = Math.max(G.rowTiers[newKey], G.floorTier | 0);
   G.accWindow = [];
   persist();
   if (typeof updateToggleVisuals === 'function') updateToggleVisuals();
@@ -3291,8 +3299,6 @@ function loop() {
 // ============================================================================
 // TOGGLES (DOM)  —  V8 §3.1 unified typography, §3.4 split Memory control
 // ============================================================================
-const segSlow = document.getElementById('seg-slow');
-const segFast = document.getElementById('seg-fast');
 const memLabel = document.getElementById('mem-label');
 // V10: memory state element moved into the Stats popup.
 const statsMemoryToggleBtn = document.getElementById('stats-memory-toggle');
@@ -3305,45 +3311,36 @@ function buildTierStrip() {
   for (let i = 0; i < TIER_COUNT; i++) {
     const cell = document.createElement('span');
     cell.className = 'tier-cell';
+    cell.setAttribute('role', 'button');
+    cell.setAttribute('aria-label', `Set speed tier ${i + 1}`);
+    cell.dataset.tier = String(i);
+    cell.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const t = parseInt(cell.dataset.tier, 10);
+      if (G.floorTier === t) return;
+      G.floorTier = t;
+      applyFloor();
+      if (G.memoryEnabled) persist();
+      updateToggleVisuals();
+    });
     tierStrip.appendChild(cell);
   }
 }
 buildTierStrip();
 
 function updateToggleVisuals() {
-  segSlow.classList.toggle('on', G.slowFast === 'slow');
-  segFast.classList.toggle('on', G.slowFast === 'fast');
+  // V10: Slow/Fast buttons gone; the tier strip itself is the control.
   // V10: memory state now reflected inside the Stats popup row.
   statsMemState.textContent = G.memoryEnabled ? 'ON' : 'OFF';
   statsMemState.classList.toggle('on', G.memoryEnabled);
   statsMemoryToggleBtn.setAttribute('aria-pressed', G.memoryEnabled ? 'true' : 'false');
-  // V9 §3.4: refresh tier strip from current row's tier.
+  // V10: tier strip cells show lit bars up to the current row's tier.
   const tier = G.rowTiers[currentSpeedKey()] | 0;
   const cells = tierStrip.children;
   for (let i = 0; i < cells.length; i++) {
     cells[i].classList.toggle('on', i <= tier);
   }
 }
-
-// V8 §3.1: clicking Slow/Fast segs independently sets that mode.
-segSlow.addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (G.slowFast !== 'slow') {
-    G.slowFast = 'slow';
-    applyFloor();
-    if (G.memoryEnabled) persist();
-    updateToggleVisuals();
-  }
-});
-segFast.addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (G.slowFast !== 'fast') {
-    G.slowFast = 'fast';
-    applyFloor();
-    if (G.memoryEnabled) persist();
-    updateToggleVisuals();
-  }
-});
 
 // V10: memory toggle relocated to Stats popup. Same wipe-on-OFF + persist-on-ON semantics.
 statsMemoryToggleBtn.addEventListener('click', (e) => {
@@ -3443,7 +3440,7 @@ function handleLadderClick(key) {
     if (idx > G.phase) {
       G.phase = idx;
       // New row gets the current floor tier.
-      G.rowTiers[key] = Math.max(G.rowTiers[key] | 0, floorTier());
+      G.rowTiers[key] = Math.max(G.rowTiers[key] | 0, G.floorTier | 0);
     }
   }
   updatePool();
@@ -3694,7 +3691,7 @@ function boot() {
   // Load persisted state
   const saved = Storage.load();
   G.memoryEnabled = true; // V10 §3.2: always ON at boot; the toggle is session-local.
-  G.slowFast = saved.slowFast;
+  G.floorTier = saved.floorTier | 0;
   if (G.memoryEnabled) {
     G.phase = saved.phase;
     G.rowTiers = saved.rowTiers;
