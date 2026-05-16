@@ -1758,13 +1758,14 @@ function startBonusCountdown() {
   // V9 §3.8: bonus rotation now has three mini-games (Key Stack unified).
   const choices = [MINI.WORD, MINI.KEY_KEEPAWAY, MINI.KEY_STACK];
   G.bonusKind = choices[Math.floor(Math.random() * choices.length)];
-  // V9 §3.9: Key Keep-a-way waits for tap before countdown; others auto-start countdown after the intro card.
+  // V10 (round 2): Key Stack now also waits for tap — testers reported the V9 auto-countdown
+  // didn't leave enough time to read the Key Stack intro. Word Practice still auto-starts.
   G.countdown = {
     phase: 'intro',            // 'intro' → 'count' → 'go' (then mini-game)
     miniKind: G.bonusKind,
     introStart: now(),
     countStart: 0,
-    waitingForTap: G.bonusKind === MINI.KEY_KEEPAWAY,
+    waitingForTap: G.bonusKind === MINI.KEY_KEEPAWAY || G.bonusKind === MINI.KEY_STACK,
     lastTickAt: -1,            // which whole-second tick has played so far
   };
   Audio.chime();
@@ -1924,7 +1925,7 @@ function startRandomMiniGame() {
     miniKind: G.bonusKind,
     introStart: now(),
     countStart: 0,
-    waitingForTap: G.bonusKind === MINI.KEY_KEEPAWAY,
+    waitingForTap: G.bonusKind === MINI.KEY_KEEPAWAY || G.bonusKind === MINI.KEY_STACK,
     lastTickAt: -1,
   };
   Audio.chime();
