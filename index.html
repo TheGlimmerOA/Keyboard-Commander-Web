@@ -402,8 +402,8 @@ const FINGER_CALLOUT_FIRST_SESSION_FIRST = 15.0;
 const FINGER_CALLOUT_BURST = 12;
 
 // Storage namespace — V9 schema bump (adds enabledRows override, miniGamePlays, miniGameBests)
-const LS_KEY = 'keyboardCommanderV9';
-const LS_KEY_LEGACY_V8 = 'keyboardCommanderV8';
+const LS_KEY = 'keyboardCommanderV10';
+const LS_KEY_LEGACY_V9 = 'keyboardCommanderV9';
 
 // Mini-game IDs  (V9 §3.8: the two Tetris games are merged into one unified TETRIS.)
 const MINI = { WORD: 'word', RUNNER: 'runner', TETRIS: 'tetris' };
@@ -445,13 +445,13 @@ const MG_COLORS = {
 const Storage = (() => {
   function readRaw() {
     try {
-      const v9 = localStorage.getItem(LS_KEY);
-      if (v9) return JSON.parse(v9);
-      // V9 migration: read V8 payload once, write it under the V9 key.
-      const v8 = localStorage.getItem(LS_KEY_LEGACY_V8);
-      if (v8) {
-        const parsed = JSON.parse(v8);
-        try { localStorage.setItem(LS_KEY, v8); } catch(e){}
+      const v10 = localStorage.getItem(LS_KEY);
+      if (v10) return JSON.parse(v10);
+      // V10 migration: read V9 payload once, write it under the V10 key.
+      const v9 = localStorage.getItem(LS_KEY_LEGACY_V9);
+      if (v9) {
+        const parsed = JSON.parse(v9);
+        try { localStorage.setItem(LS_KEY, v9); } catch(e){}
         return parsed;
       }
       return {};
