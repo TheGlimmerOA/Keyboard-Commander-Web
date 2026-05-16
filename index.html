@@ -2869,7 +2869,8 @@ function keyStackDraw() {
       }
     }
 
-    // V9 §3.8: letter rendered inside the BOTTOM-LEFT square of the piece, in main-game WHITE.
+    // V10 §3.5: letter rendered inside the BOTTOM-LEFT square of the piece, in main-game WHITE,
+    // on a UNIFORM DARK BACKING SQUARE so contrast is consistent across every piece color.
     if (a.pieceLetter) {
       // Find the bottom-left filled square of the piece's bounding box.
       let blRow = -1, blCol = -1;
@@ -2879,10 +2880,16 @@ function keyStackDraw() {
         }
       }
       if (blRow !== -1) {
-        const sx = ARROW_FX + (a.pieceX + blCol + 0.5) * ARROW_CELL;
-        const sy = ARROW_FY + (a.pieceY + blRow + 0.5) * ARROW_CELL;
-        if (sy >= ARROW_FY) {
+        const cellX = ARROW_FX + (a.pieceX + blCol) * ARROW_CELL;
+        const cellY = ARROW_FY + (a.pieceY + blRow) * ARROW_CELL;
+        const sx = cellX + ARROW_CELL / 2;
+        const sy = cellY + ARROW_CELL / 2;
+        if (cellY >= ARROW_FY) {
           ctx.save();
+          // V10 §3.5: dark backing square fills the lettered cell.
+          ctx.fillStyle = '#1a1a22';
+          ctx.fillRect(cellX + 1, cellY + 1, ARROW_CELL - 2, ARROW_CELL - 2);
+          // White letter on top.
           ctx.fillStyle = C.brightWhite;
           ctx.font = `700 ${Math.floor(ARROW_CELL * 0.78)}px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace`;
           ctx.textAlign = 'center';
