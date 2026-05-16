@@ -419,6 +419,13 @@ const INTRO_DURATION = 3.0; // V7 §3.3: 2-3 seconds before the round starts
 // V7 §3.5: Key Keep-a-way persists for at least 45 seconds (no longer the 15s bonus window).
 const KEY_KEEPAWAY_DURATION = 45.0;
 
+// V10 §3.7: spacebar-bounce tunables. Apple in range arcs over the fox; no fox jump.
+const KEY_KEEPAWAY_BOUNCE_RANGE_MIN = 30;   // px ahead of fox where bounce is allowed (near edge)
+const KEY_KEEPAWAY_BOUNCE_RANGE_MAX = 280;  // px ahead of fox where bounce is allowed (far edge)
+const KEY_KEEPAWAY_BOUNCE_DURATION = 0.80;  // seconds the arc takes from press to land
+const KEY_KEEPAWAY_BOUNCE_PEAK_HEIGHT = 200; // px the apple rises at the arc's peak
+const KEY_KEEPAWAY_BOUNCE_FORWARD = 220;    // px the apple moves forward over the duration
+
 // V8 §3.2: toned-down mini-game palette — calmer 80s console aesthetic,
 // distinct from the main screen but no longer competing with gameplay.
 const MG_COLORS = {
@@ -2075,10 +2082,6 @@ function keyKeepawayStart() {
     // when the player presses SPACE within range. Bouncing apples cannot be caught or typed.
     startTime: now(),
     charX: 200,
-    charY: 0,
-    charVy: 0,
-    grounded: true,
-    jumping: false,
     targetKey: null,
     apples: [],                  // V9 §3.6: letter-labeled apples (was obstacles)
     spawnNextAt: now() + 0.8,
@@ -2116,7 +2119,7 @@ function keyKeepawayKey(ev) {
   if (ev.key === ' ' || ev.key === 'Spacebar') {
     // V10 §3.7: spacebar bounces the NEAREST in-range apple upward — no longer jumps the fox.
     // Range: 30 to 280 px ahead of the fox. No cooldown. Works on labeled and unlabeled apples.
-    const candidates = r.apples.filter(o => !o.cleared && !o.bouncing && o.x > r.charX + 30 && o.x < r.charX + 280);
+    const candidates = r.apples.filter(o => !o.cleared && !o.bouncing && o.x > r.charX + KEY_KEEPAWAY_BOUNCE_RANGE_MIN && o.x < r.charX + KEY_KEEPAWAY_BOUNCE_RANGE_MAX);
     if (candidates.length === 0) {
       // No apple in range — press does nothing. Not a penalty.
       return;
@@ -2176,32 +2179,18 @@ function keyKeepawayUpdate() {
   const ramp = Math.min(1, (t - r.startTime) / KEY_KEEPAWAY_DURATION);
   const speed = r.speed * (1 + ramp * 0.6) * (G.testFast ? TEST_MULTIPLIER : 1);
 
-  if (!r.grounded) {
-    r.charVy += 1400 * dt;
-    r.charY += r.charVy * dt;
-    if (r.charY >= 0) {
-      r.charY = 0;
-      r.charVy = 0;
-      r.grounded = true;
-      r.jumping = false;
-    }
-  }
-
   r.runFrame += dt * 8;
 
   // V10 §3.7: apple movement. Two trajectories:
   //   - Conveyor (default): apple drifts left along the track; fox catches if it reaches.
   //   - Bouncing: apple follows a parabolic arc up-and-forward over the fox; cannot be caught.
-  const BOUNCE_DURATION = 0.80;
-  const BOUNCE_PEAK_HEIGHT = 200;
-  const BOUNCE_FORWARD = 220;
   for (let i = r.apples.length - 1; i >= 0; i--) {
     const o = r.apples[i];
     if (o.bouncing) {
       const age = t - o.bounceStart;
-      const p = Math.min(1, age / BOUNCE_DURATION);
-      o.x = o.bounceFromX + BOUNCE_FORWARD * p;
-      o.bounceY = -BOUNCE_PEAK_HEIGHT * Math.sin(p * Math.PI);
+      const p = Math.min(1, age / KEY_KEEPAWAY_BOUNCE_DURATION);
+      o.x = o.bounceFromX + KEY_KEEPAWAY_BOUNCE_FORWARD * p;
+      o.bounceY = -KEY_KEEPAWAY_BOUNCE_PEAK_HEIGHT * Math.sin(p * Math.PI);
       if (p >= 1) {
         o.cleared = true; // arc complete — apple is kept away.
         o.bouncing = false;
@@ -2210,7 +2199,7 @@ function keyKeepawayUpdate() {
       o.x -= speed * dt;
       if (!o.cleared && !r.gameOver) {
         const dx = o.x - r.charX;
-        if (dx <= 0 && dx > -28 && r.charY > -28) {
+        if (dx <= 0 && dx > -28) {
           r.gameOver = true;
           r.gameOverAt = t;
           r.caughtApple = o;
@@ -2387,7 +2376,7 @@ function keyKeepawayDraw() {
 
   // V9 §3.6: pixel fox character (preserved, well-loved by testers).
   const cx = r.charX;
-  const cy = groundY + r.charY;
+  const cy = groundY;
   if (!r.gameOver) {
     drawFox(cx, cy, r.runFrame);
   }
@@ -2459,7 +2448,7 @@ function keyKeepawayDraw() {
     const settle = Math.max(0, Math.min(1, (age - 0.5) / 0.8));
     // Fox shifts forward a touch during the snap
     const fx = r.charX + 6 * snap;
-    const fy = groundY + r.charY - 2 * Math.sin(snap * Math.PI);
+    const fy = groundY - 2 * Math.sin(snap * Math.PI);
     drawFox(fx, fy, r.runFrame);
     // Apple in fox's mouth — sits just in front of snout
     if (r.caughtApple) {
@@ -3159,7 +3148,7 @@ function onCanvasPointer(ev) {
       keyKeepawayStart();
       return;
     }
-    // Tap to jump (mobile or click)
+    // V10 §3.7: tap routes through the spacebar branch — bounces nearest apple, no fox jump.
     keyKeepawayKey({ key: ' ' });
     return;
   }
