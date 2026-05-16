@@ -474,7 +474,7 @@ const Storage = (() => {
   function load() {
     const raw = readRaw();
     return {
-      memoryEnabled: raw.memoryEnabled !== false, // default ON
+      memoryEnabled: true, // V10 §3.2: always ON on page load; not persisted across reloads
       slowFast: raw.slowFast === 'fast' ? 'fast' : 'slow',
       phase: typeof raw.phase === 'number' ? raw.phase : 0,
       rowTiers: raw.rowTiers || { home: 0, top: 0, bottom: 0, num: 0 },
@@ -504,11 +504,10 @@ const Storage = (() => {
   }
   function save(state) {
     if (state.memoryEnabled === false) {
-      writeRaw({ memoryEnabled: false });
+      writeRaw({}); // V10 §3.2: OFF clears everything; the next load defaults memoryEnabled=ON anyway.
       return;
     }
     writeRaw({
-      memoryEnabled: true,
       slowFast: state.slowFast,
       phase: state.phase,
       rowTiers: state.rowTiers,
@@ -3601,7 +3600,7 @@ function boot() {
   Audio.init();
   // Load persisted state
   const saved = Storage.load();
-  G.memoryEnabled = saved.memoryEnabled;
+  G.memoryEnabled = true; // V10 §3.2: always ON at boot; the toggle is session-local.
   G.slowFast = saved.slowFast;
   if (G.memoryEnabled) {
     G.phase = saved.phase;
