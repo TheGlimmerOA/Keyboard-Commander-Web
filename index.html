@@ -87,6 +87,14 @@
   }
   #tier-strip .tier-cell.on { background: #64c8ff; }
   #tier-strip .tier-cell:hover { transform: scaleY(1.5); }
+  /* V10: main-game time counter moved into the top toggle bar. */
+  #time-counter {
+    color: #96a0aa;
+    letter-spacing: 0.04em;
+  }
+  #time-counter.hidden { visibility: hidden; }
+  #time-label { color: #96a0aa; }
+  #time-value { color: #dcdcdc; font-variant-numeric: tabular-nums; }
   /* V9 §3.3: unified menu/dialog style — large monospace, subtle color, visible outline, responsive buttons. */
   .v9-dialog-button {
     background: transparent;
@@ -289,6 +297,10 @@
       <div class="toggle" id="speed-toggle" aria-label="Speed control — click a bar to set the floor tier">
         <span id="speed-label">Speed</span>
         <span id="tier-strip" aria-label="Speed tier bars — click to set"></span>
+      </div>
+      <div class="toggle" id="time-counter" aria-label="Session time remaining" aria-hidden="true">
+        <span id="time-label">Time</span>
+        <span id="time-value">3:00</span>
       </div>
       <div class="toggle" id="memory-toggle" aria-label="Settings">
         <span id="mem-label">Settings</span>
@@ -1379,16 +1391,7 @@ function drawHUD() {
   ctx.fillText('LETTERS', VW / 2, HUD_TOP + 74);
 
   // V9 §3.4: in-canvas SPEED block removed — the tier strip lives in the DOM toggle bar now.
-
-  // Time remaining (left side)
-  if (G.sessionStart) {
-    const remaining = Math.max(0, SESSION_DUR - (now() - G.sessionStart));
-    const m = Math.floor(remaining / 60);
-    const s = Math.floor(remaining % 60);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = C.blueGray;
-    ctx.fillText(`${m}:${s.toString().padStart(2,'0')}`, 90, HUD_TOP + 6);
-  }
+  // V10: in-canvas time counter removed — the time counter lives in the DOM toggle bar now.
 
   ctx.restore();
 }
@@ -3289,8 +3292,26 @@ function draw() {
   else if (s === 'end') endDraw();
 }
 
+// V10: keep the DOM time counter in sync with the active session.
+const timeCounterEl = document.getElementById('time-counter');
+const timeValueEl = document.getElementById('time-value');
+function updateTimeCounter() {
+  if (!G.sessionStart) {
+    timeCounterEl.setAttribute('aria-hidden', 'true');
+    timeCounterEl.classList.add('hidden');
+    return;
+  }
+  const remaining = Math.max(0, SESSION_DUR - (now() - G.sessionStart));
+  const m = Math.floor(remaining / 60);
+  const s = Math.floor(remaining % 60);
+  timeValueEl.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  timeCounterEl.setAttribute('aria-hidden', 'false');
+  timeCounterEl.classList.remove('hidden');
+}
+
 function loop() {
   update();
+  updateTimeCounter();
   draw();
   lastFrameTime = performance.now();
   requestAnimationFrame(loop);
