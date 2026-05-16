@@ -521,7 +521,7 @@ const Storage = (() => {
     });
   }
   function wipe() {
-    writeRaw({ memoryEnabled: false });
+    writeRaw({}); // V10 §3.2: clear storage entirely; next load defaults memoryEnabled=ON regardless.
   }
   return { load, save, wipe };
 })();
@@ -911,8 +911,8 @@ function applyFloor() {
 }
 
 function persist() {
+  // V10 §3.2: memoryEnabled is session-local and no longer persisted; callers gate persist() on it.
   Storage.save({
-    memoryEnabled: G.memoryEnabled,
     slowFast: G.slowFast,
     phase: G.phase,
     rowTiers: G.rowTiers,
