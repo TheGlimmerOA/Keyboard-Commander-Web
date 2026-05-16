@@ -411,7 +411,7 @@ const MINI = { WORD: 'word', KEY_KEEPAWAY: 'keyKeepaway', KEY_STACK: 'keyStack' 
 // V7 §3.3 / V9 §3.8: intro card text per mini-game. V9 unifies the Key Stack card.
 const MINI_INTROS = {
   word:    { title: 'Word Practice',  lines: ['Type the word you see — letter by letter.', 'Words appear one after another for 45 seconds.'] },
-  keyKeepaway:  { title: 'The Runner',     lines: ['The fox is chasing falling apples.', 'Press SPACE to jump or type the letter to keep an apple away.', 'Press SPACE or click to begin.'] },
+  keyKeepaway:  { title: 'Key Keep-a-way',     lines: ['The fox is chasing falling apples.', 'Press SPACE to jump or type the letter to keep an apple away.', 'Press SPACE or click to begin.'] },
   keyStack:  { title: 'Key Stack',      lines: ['Use the ARROW KEYS to move and rotate the piece.', 'Some pieces show a letter — type it for an auto-perfect place.'] },
 };
 const INTRO_DURATION = 3.0; // V7 §3.3: 2-3 seconds before the round starts
@@ -3368,7 +3368,7 @@ function buildMiniCollection() {
   // V9 §3.10: any zero-value stat is hidden — so a brand-new player sees only what they've played.
   const entries = [
     { id: 'main',   name: 'Main game',     plays: G.miniPlays.main   | 0, best: G.personalBestWPM ? `Best WPM ${Math.round(G.personalBestWPM)}` : null },
-    { id: 'keyKeepaway', name: 'The Runner',    plays: G.miniPlays.keyKeepaway | 0, best: (G.miniBest.keyKeepaway | 0) > 0 ? `Best ${G.miniBest.keyKeepaway} apples kept away` : null },
+    { id: 'keyKeepaway', name: 'Key Keep-a-way',    plays: G.miniPlays.keyKeepaway | 0, best: (G.miniBest.keyKeepaway | 0) > 0 ? `Best ${G.miniBest.keyKeepaway} apples kept away` : null },
     { id: 'keyStack', name: 'Key Stack',     plays: G.miniPlays.keyStack | 0, best: (G.miniBest.keyStack | 0) > 0 ? `Best ${G.miniBest.keyStack} lines` : null },
     { id: 'word',   name: 'Word Practice', plays: G.miniPlays.word   | 0, best: (G.miniBest.word   | 0) > 0 ? `Best ${G.miniBest.word} words` : null },
   ];
