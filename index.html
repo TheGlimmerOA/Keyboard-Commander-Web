@@ -2960,8 +2960,8 @@ function keyStackDraw() {
       }
     }
 
-    // V10 §3.5: letter rendered inside the BOTTOM-LEFT square of the piece, in main-game WHITE,
-    // on a UNIFORM DARK BACKING SQUARE so contrast is consistent across every piece color.
+    // V10 (round 2): letter rendered inside the BOTTOM-LEFT square of the piece, in main-game WHITE
+    // with a thin black stroke so the letter pops on every piece color without breaking the piece shape.
     if (a.pieceLetter) {
       // Find the bottom-left filled square of the piece's bounding box.
       let blRow = -1, blCol = -1;
@@ -2977,14 +2977,16 @@ function keyStackDraw() {
         const sy = cellY + ARROW_CELL / 2;
         if (cellY >= ARROW_FY) {
           ctx.save();
-          // V10 §3.5: dark backing square fills the lettered cell.
-          ctx.fillStyle = '#1a1a22';
-          ctx.fillRect(cellX + 1, cellY + 1, ARROW_CELL - 2, ARROW_CELL - 2);
-          // White letter on top.
-          ctx.fillStyle = C.brightWhite;
+          // V10 (round 2): piece color is preserved across the whole shape; the letter reads as
+          // a white glyph with a thin black stroke so it stays legible on every piece color.
           ctx.font = `700 ${Math.floor(ARROW_CELL * 0.78)}px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
+          ctx.lineJoin = 'round';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#000000';
+          ctx.strokeText(a.pieceLetter.toUpperCase(), sx, sy);
+          ctx.fillStyle = C.brightWhite;
           ctx.fillText(a.pieceLetter.toUpperCase(), sx, sy);
           ctx.restore();
         }
