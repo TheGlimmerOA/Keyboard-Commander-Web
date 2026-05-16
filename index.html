@@ -411,7 +411,7 @@ const MINI = { WORD: 'word', KEY_KEEPAWAY: 'keyKeepaway', KEY_STACK: 'keyStack' 
 // V7 §3.3 / V9 §3.8: intro card text per mini-game. V9 unifies the Key Stack card.
 const MINI_INTROS = {
   word:    { title: 'Word Practice',  lines: ['Type the word you see — letter by letter.', 'Words appear one after another for 45 seconds.'] },
-  keyKeepaway:  { title: 'Key Keep-a-way',     lines: ['The fox is chasing falling apples.', 'Press SPACE to jump or type the letter to keep an apple away.', 'Press SPACE or click to begin.'] },
+  keyKeepaway:  { title: 'Key Keep-a-way',     lines: ['Keep the apples away from the fox!', 'Type the letter on an apple to blow it up.', 'Or press SPACE to bounce an apple over the fox.', 'Press SPACE or click to begin.'] },
   keyStack:  { title: 'Key Stack',      lines: ['Use the ARROW KEYS to move and rotate the piece.', 'Some pieces show a letter — type it for an auto-perfect place.'] },
 };
 const INTRO_DURATION = 3.0; // V7 §3.3: 2-3 seconds before the round starts
@@ -2086,9 +2086,9 @@ function keyKeepawayStart() {
     apples: [],                  // V9 §3.6: letter-labeled apples (was obstacles)
     spawnNextAt: now() + 0.8,
     speed: 240,
-    cleared: 0,                  // total apples kept away from the fox (jumped or blown up)
+    cleared: 0,                  // total apples kept away from the fox (bounced or blown up)
     blownUp: 0,
-    jumped: 0,
+    bounced: 0,
     bumped: 0,
     bumpStop: 0,
     blasts: [],
@@ -2135,7 +2135,7 @@ function keyKeepawayKey(ev) {
     nearest.bounceY = 0;
     nearest.glowUntil = t + 0.30;
     r.cleared += 1;
-    r.jumped += 1;
+    r.bounced += 1;
     Audio.play();
     return;
   }
@@ -2434,9 +2434,9 @@ function keyKeepawayDraw() {
   ctx.textAlign = 'center';
   ctx.font = '400 16px "SF Mono", Consolas, Menlo, monospace';
   if (!r.gameOver) {
-    ctx.fillText('SPACE TO JUMP  ·  TYPE THE LETTER TO KEEP THE APPLE AWAY', VW / 2, 60);
+    ctx.fillText('SPACE TO BOUNCE  ·  TYPE THE LETTER TO BLOW IT UP', VW / 2, 60);
     ctx.font = '400 14px "SF Mono", Consolas, Menlo, monospace';
-    ctx.fillText(`KEPT AWAY: ${r.cleared}  (JUMPED ${r.jumped} · TYPED ${r.blownUp})`, VW / 2, 84);
+    ctx.fillText(`KEPT AWAY: ${r.cleared}  (BOUNCED ${r.bounced} · TYPED ${r.blownUp})`, VW / 2, 84);
   }
   ctx.restore();
 
