@@ -406,29 +406,29 @@ const LS_KEY = 'keyboardCommanderV10';
 const LS_KEY_LEGACY_V9 = 'keyboardCommanderV9';
 
 // Mini-game IDs  (V9 §3.8: the two prior tetris-style games are merged into one unified KEY_STACK.)
-const MINI = { WORD: 'word', RUNNER: 'runner', KEY_STACK: 'keyStack' };
+const MINI = { WORD: 'word', KEY_KEEPAWAY: 'keyKeepaway', KEY_STACK: 'keyStack' };
 
 // V7 §3.3 / V9 §3.8: intro card text per mini-game. V9 unifies the Key Stack card.
 const MINI_INTROS = {
   word:    { title: 'Word Practice',  lines: ['Type the word you see — letter by letter.', 'Words appear one after another for 45 seconds.'] },
-  runner:  { title: 'The Runner',     lines: ['The fox is chasing falling apples.', 'Press SPACE to jump or type the letter to keep an apple away.', 'Press SPACE or click to begin.'] },
+  keyKeepaway:  { title: 'The Runner',     lines: ['The fox is chasing falling apples.', 'Press SPACE to jump or type the letter to keep an apple away.', 'Press SPACE or click to begin.'] },
   keyStack:  { title: 'Tetris',         lines: ['Use the ARROW KEYS to move and rotate the piece.', 'Some pieces show a letter — type it for an auto-perfect place.'] },
 };
 const INTRO_DURATION = 3.0; // V7 §3.3: 2-3 seconds before the round starts
 
-// V7 §3.5: The Runner persists for at least 45 seconds (no longer the 15s bonus window).
-const RUNNER_DURATION = 45.0;
+// V7 §3.5: Key Keep-a-way persists for at least 45 seconds (no longer the 15s bonus window).
+const KEY_KEEPAWAY_DURATION = 45.0;
 
 // V8 §3.2: toned-down mini-game palette — calmer 80s console aesthetic,
 // distinct from the main screen but no longer competing with gameplay.
 const MG_COLORS = {
-  // Runner: muted dusk gradient, soft amber fox, blue-gray obstacles.
-  runnerSky:    ['#1b1a2a', '#3a2a4a', '#5a4a5a'],
-  runnerGround: '#1a1620',
-  runnerObstacle: '#4a5a78',
-  runnerObstacleEdge: '#7a8ca8',
-  runnerCharBody: '#c89a5a',
-  runnerCharHead: '#d8a868',
+  // Key Keep-a-way: muted dusk gradient, soft amber fox, blue-gray obstacles.
+  kkSky:    ['#1b1a2a', '#3a2a4a', '#5a4a5a'],
+  kkGround: '#1a1620',
+  kkObstacle: '#4a5a78',
+  kkObstacleEdge: '#7a8ca8',
+  kkCharBody: '#c89a5a',
+  kkCharHead: '#d8a868',
   // Word Practice: subtle cool background, a single soft accent for the word.
   wordBg:    '#161821',
   wordAccent: '#dcdcdc',
@@ -442,6 +442,17 @@ const MG_COLORS = {
 // ============================================================================
 // STORAGE (Memory toggle)
 // ============================================================================
+// V10: helper for folding legacy storage keys into renamed slots.
+// If `obj` has the legacy key and not the new key, move the value over and delete the legacy key.
+// Idempotent — safe to call on already-migrated objects.
+function foldLegacyKey(obj, fromKey, toKey) {
+  if (obj && obj[fromKey] && !obj[toKey]) {
+    obj[toKey] = obj[fromKey];
+    delete obj[fromKey];
+  }
+  return obj;
+}
+
 const Storage = (() => {
   function readRaw() {
     try {
@@ -476,15 +487,17 @@ const Storage = (() => {
       // null entries mean "follow auto-progression"; explicit true/false overrides.
       enabledRows: raw.enabledRows || { home: null, top: null, bottom: null, num: null },
       // V9 §3.5: expandable mini-game collection — per-game plays and bests.
-      // V10: legacy V9 stored these under `tetris`; fold into `keyStack` on read.
+      // V10: legacy V9 stored these under `tetris`/`runner`; fold into `keyStack`/`keyKeepaway` on read.
       miniPlays: (() => {
-        const m = raw.miniPlays || { word: 0, runner: 0, keyStack: 0, main: 0 };
-        if (m.tetris && !m.keyStack) { m.keyStack = m.tetris; delete m.tetris; }
+        const m = raw.miniPlays || { word: 0, keyKeepaway: 0, keyStack: 0, main: 0 };
+        foldLegacyKey(m, 'tetris', 'keyStack');
+        foldLegacyKey(m, 'runner', 'keyKeepaway');
         return m;
       })(),
       miniBest: (() => {
-        const m = raw.miniBest || { word: 0, runner: 0, keyStack: 0 };
-        if (m.tetris && !m.keyStack) { m.keyStack = m.tetris; delete m.tetris; }
+        const m = raw.miniBest || { word: 0, keyKeepaway: 0, keyStack: 0 };
+        foldLegacyKey(m, 'tetris', 'keyStack');
+        foldLegacyKey(m, 'runner', 'keyKeepaway');
         return m;
       })(),
     };
@@ -728,8 +741,8 @@ const G = {
   // V9 §3.5: ladder override — null = follow auto-progression; true/false overrides.
   enabledRows: { home: null, top: null, bottom: null, num: null },
   // V9 §3.5: mini-game collection.
-  miniPlays: { word: 0, runner: 0, keyStack: 0, main: 0 },
-  miniBest: { word: 0, runner: 0, keyStack: 0 },
+  miniPlays: { word: 0, keyKeepaway: 0, keyStack: 0, main: 0 },
+  miniBest: { word: 0, keyKeepaway: 0, keyStack: 0 },
 
   // V9 §3.9: countdown state (3-2-1 before every mini-game).
   countdown: null, // { startTime, miniKind, waitingForTap }
@@ -746,7 +759,7 @@ const G = {
   statsOpenedAt: 0,
 
   // Session
-  state: 'onboarding', // onboarding | playing | menu | bonus_countdown | mini_word | mini_runner | mini_keyStack | end
+  state: 'onboarding', // onboarding | playing | menu | bonus_countdown | mini_word | mini_keyKeepaway | mini_keyStack | end
   obStep: 0,
   sessionStart: 0,
   correctChars: 0,
@@ -814,7 +827,7 @@ const G = {
 
   // Mini-games (per-game state stored on G)
   word: null,
-  runner: null,
+  keyKeepaway: null,
   arrow: null,
 };
 
@@ -1688,15 +1701,15 @@ function startBonusCountdown() {
   G.bonusAccum = 0;
   G.state = 'bonus_countdown';
   // V9 §3.8: bonus rotation now has three mini-games (Key Stack unified).
-  const choices = [MINI.WORD, MINI.RUNNER, MINI.KEY_STACK];
+  const choices = [MINI.WORD, MINI.KEY_KEEPAWAY, MINI.KEY_STACK];
   G.bonusKind = choices[Math.floor(Math.random() * choices.length)];
-  // V9 §3.9: Runner waits for tap before countdown; others auto-start countdown after the intro card.
+  // V9 §3.9: Key Keep-a-way waits for tap before countdown; others auto-start countdown after the intro card.
   G.countdown = {
     phase: 'intro',            // 'intro' → 'count' → 'go' (then mini-game)
     miniKind: G.bonusKind,
     introStart: now(),
     countStart: 0,
-    waitingForTap: G.bonusKind === MINI.RUNNER,
+    waitingForTap: G.bonusKind === MINI.KEY_KEEPAWAY,
     lastTickAt: -1,            // which whole-second tick has played so far
   };
   Audio.chime();
@@ -1707,7 +1720,7 @@ function bcUpdate() {
   const cd = G.countdown;
   if (!cd) { return; }
   if (cd.phase === 'intro') {
-    // V9 §3.9: Key Stack and Word auto-advance after a short read (INTRO_DURATION); Runner waits for a tap.
+    // V9 §3.9: Key Stack and Word auto-advance after a short read (INTRO_DURATION); Key Keep-a-way waits for a tap.
     if (!cd.waitingForTap && t - cd.introStart >= INTRO_DURATION) {
       cd.phase = 'count';
       cd.countStart = t;
@@ -1734,7 +1747,7 @@ function bcUpdate() {
   updateParticles();
 }
 
-// V9 §3.9: Runner intro accepts space-or-click to advance into the countdown.
+// V9 §3.9: Key Keep-a-way intro accepts space-or-click to advance into the countdown.
 function bcAdvanceFromTap() {
   const cd = G.countdown;
   if (!cd) return;
@@ -1839,7 +1852,7 @@ function bcDraw() {
 
 function startBonus(kind) {
   if (kind === MINI.WORD) wordStart();
-  else if (kind === MINI.RUNNER) runnerStart();
+  else if (kind === MINI.KEY_KEEPAWAY) keyKeepawayStart();
   else if (kind === MINI.KEY_STACK) keyStackStart();
 }
 
@@ -1847,7 +1860,7 @@ function startRandomMiniGame() {
   // V9 §3.8: bonus rotation has three mini-games (Key Stack unified).
   G.bonusPauseStart = now();
   G.bonusAccum = 0;
-  const choices = G.isMobile ? [MINI.KEY_STACK] : [MINI.WORD, MINI.RUNNER, MINI.KEY_STACK];
+  const choices = G.isMobile ? [MINI.KEY_STACK] : [MINI.WORD, MINI.KEY_KEEPAWAY, MINI.KEY_STACK];
   G.bonusKind = choices[Math.floor(Math.random() * choices.length)];
   G.bcStart = now();
   G.state = 'bonus_countdown';
@@ -1856,7 +1869,7 @@ function startRandomMiniGame() {
     miniKind: G.bonusKind,
     introStart: now(),
     countStart: 0,
-    waitingForTap: G.bonusKind === MINI.RUNNER,
+    waitingForTap: G.bonusKind === MINI.KEY_KEEPAWAY,
     lastTickAt: -1,
   };
   Audio.chime();
@@ -2055,10 +2068,10 @@ function drawHintEsc() {
 }
 
 // ============================================================================
-// MINI-GAME 2: THE RUNNER — V9 §3.6: apples, visible track, fox-catches animation, crunch
+// MINI-GAME 2: KEY KEEP-A-WAY — V9 §3.6: apples, visible track, fox-catches animation, crunch
 // ============================================================================
-function runnerStart() {
-  G.runner = {
+function keyKeepawayStart() {
+  G.keyKeepaway = {
     startTime: now(),
     charX: 200,
     charY: 0,
@@ -2082,17 +2095,17 @@ function runnerStart() {
     caughtApple: null,           // reference to the apple in the fox's mouth
     caughtAt: 0,                 // timestamp of catch
   };
-  G.state = 'mini_runner';
+  G.state = 'mini_keyKeepaway';
 }
 
-function runnerKey(ev) {
-  const r = G.runner;
+function keyKeepawayKey(ev) {
+  const r = G.keyKeepaway;
   const t = now();
 
   // V9 §3.6: from the catch state, Enter restarts; Esc handled globally.
   if (r.gameOver) {
     if (ev.key === 'Enter') {
-      runnerStart();
+      keyKeepawayStart();
     }
     return;
   }
@@ -2136,8 +2149,8 @@ function runnerKey(ev) {
   }
 }
 
-function runnerUpdate() {
-  const r = G.runner;
+function keyKeepawayUpdate() {
+  const r = G.keyKeepaway;
   const t = now();
   const dtMs = Math.min(50, performance.now() - lastFrameTime);
   const dt = dtMs / 1000;
@@ -2148,9 +2161,9 @@ function runnerUpdate() {
     return;
   }
 
-  if (t - r.startTime >= RUNNER_DURATION) { runnerFinish(); return; }
+  if (t - r.startTime >= KEY_KEEPAWAY_DURATION) { keyKeepawayFinish(); return; }
 
-  const ramp = Math.min(1, (t - r.startTime) / RUNNER_DURATION);
+  const ramp = Math.min(1, (t - r.startTime) / KEY_KEEPAWAY_DURATION);
   const speed = r.speed * (1 + ramp * 0.6) * (G.testFast ? TEST_MULTIPLIER : 1);
 
   if (!r.grounded) {
@@ -2203,11 +2216,11 @@ function runnerUpdate() {
   updateParticles();
 }
 
-function runnerFinish() {
-  const r = G.runner;
+function keyKeepawayFinish() {
+  const r = G.keyKeepaway;
   // V9 §3.5: record play + best for the mini-game collection.
-  G.miniPlays.runner = (G.miniPlays.runner | 0) + 1;
-  G.miniBest.runner = Math.max(G.miniBest.runner | 0, r.cleared);
+  G.miniPlays.keyKeepaway = (G.miniPlays.keyKeepaway | 0) + 1;
+  G.miniBest.keyKeepaway = Math.max(G.miniBest.keyKeepaway | 0, r.cleared);
   persist();
   setMilestone(`Nice! ${r.cleared} apples kept away`);
   resumePlayAfterBonus();
@@ -2217,8 +2230,8 @@ function runnerFinish() {
 function drawFox(cx, cy, runFrame) {
   // cy is the foot baseline. Fox is ~30px wide × 22px tall.
   const px = 4; // "pixel" size for the blocky look
-  const body = MG_COLORS.runnerCharBody;
-  const head = MG_COLORS.runnerCharHead;
+  const body = MG_COLORS.kkCharBody;
+  const head = MG_COLORS.kkCharHead;
   const dark = '#3a2618';
   const white = '#e8d8c0';
   // simple two-frame leg cycle
@@ -2303,18 +2316,18 @@ function drawApple(x, y, label, wobble) {
   ctx.restore();
 }
 
-function runnerDraw() {
-  const r = G.runner;
+function keyKeepawayDraw() {
+  const r = G.keyKeepaway;
   const groundY = VH * 0.55;
   // Dusk gradient sky.
-  const sky = MG_COLORS.runnerSky;
+  const sky = MG_COLORS.kkSky;
   const grad = ctx.createLinearGradient(0, 0, 0, groundY);
   grad.addColorStop(0, sky[0]);
   grad.addColorStop(0.55, sky[1]);
   grad.addColorStop(1, sky[2]);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, VW, groundY);
-  ctx.fillStyle = MG_COLORS.runnerGround;
+  ctx.fillStyle = MG_COLORS.kkGround;
   ctx.fillRect(0, groundY, VW, VH - groundY);
 
   drawKeyboard();
@@ -2380,7 +2393,7 @@ function runnerDraw() {
   // Timer bar (suppressed during catch animation so the moment reads cleanly).
   if (!r.gameOver) {
     const elapsed = now() - r.startTime;
-    const ratio = Math.min(1, elapsed / RUNNER_DURATION);
+    const ratio = Math.min(1, elapsed / KEY_KEEPAWAY_DURATION);
     const fullW = Math.floor(VW * 0.4);
     const bx = VW / 2 - fullW / 2;
     ctx.fillStyle = '#3c465a';
@@ -2420,7 +2433,7 @@ function runnerDraw() {
       drawApple(fx + 22, fy - 14 + crunchShake, r.caughtApple.label, 0);
       // bite-mark crescent on the side facing the fox
       ctx.save();
-      ctx.fillStyle = MG_COLORS.runnerGround;
+      ctx.fillStyle = MG_COLORS.kkGround;
       ctx.beginPath();
       ctx.arc(fx + 14, fy - 14, 6, -Math.PI / 2, Math.PI / 2);
       ctx.fill();
@@ -2982,9 +2995,9 @@ function handleEscape() {
     openMenu('pause');
     return;
   }
-  if (s === 'mini_word' || s === 'mini_runner' || s === 'mini_keyStack') {
+  if (s === 'mini_word' || s === 'mini_keyKeepaway' || s === 'mini_keyStack') {
     if (s === 'mini_word') wordFinish();
-    else if (s === 'mini_runner') runnerFinish();
+    else if (s === 'mini_keyKeepaway') keyKeepawayFinish();
     else if (s === 'mini_keyStack') keyStackFinish();
     G.pauseTime = now();
     openMenu('pause');
@@ -3038,9 +3051,9 @@ function onKeyDown(ev) {
   }
   else if (s === 'menu') menuKey(ev);
   else if (s === 'mini_word') wordKey(ev);
-  else if (s === 'mini_runner') runnerKey(ev);
+  else if (s === 'mini_keyKeepaway') keyKeepawayKey(ev);
   else if (s === 'mini_keyStack') keyStackKey(ev);
-  // V9 §3.9: Runner intro accepts space to advance into the countdown.
+  // V9 §3.9: Key Keep-a-way intro accepts space to advance into the countdown.
   else if (s === 'bonus_countdown' && (ev.key === ' ' || ev.key === 'Spacebar' || ev.key === 'Enter')) {
     bcAdvanceFromTap();
   }
@@ -3097,14 +3110,14 @@ function onCanvasPointer(ev) {
     bcAdvanceFromTap();
     return;
   }
-  if (s === 'mini_runner') {
-    const r = G.runner;
+  if (s === 'mini_keyKeepaway') {
+    const r = G.keyKeepaway;
     if (r && r.gameOver) {
-      runnerStart();
+      keyKeepawayStart();
       return;
     }
     // Tap to jump (mobile or click)
-    runnerKey({ key: ' ' });
+    keyKeepawayKey({ key: ' ' });
     return;
   }
   if (s === 'mini_keyStack') {
@@ -3155,7 +3168,7 @@ function update() {
   else if (s === 'menu') menuUpdate();
   else if (s === 'bonus_countdown') bcUpdate();
   else if (s === 'mini_word') wordUpdate();
-  else if (s === 'mini_runner') runnerUpdate();
+  else if (s === 'mini_keyKeepaway') keyKeepawayUpdate();
   else if (s === 'mini_keyStack') keyStackUpdate();
 }
 
@@ -3177,7 +3190,7 @@ function draw() {
   }
   else if (s === 'bonus_countdown') bcDraw();
   else if (s === 'mini_word') wordDraw();
-  else if (s === 'mini_runner') runnerDraw();
+  else if (s === 'mini_keyKeepaway') keyKeepawayDraw();
   else if (s === 'mini_keyStack') keyStackDraw();
   else if (s === 'end') endDraw();
 }
@@ -3355,7 +3368,7 @@ function buildMiniCollection() {
   // V9 §3.10: any zero-value stat is hidden — so a brand-new player sees only what they've played.
   const entries = [
     { id: 'main',   name: 'Main game',     plays: G.miniPlays.main   | 0, best: G.personalBestWPM ? `Best WPM ${Math.round(G.personalBestWPM)}` : null },
-    { id: 'runner', name: 'The Runner',    plays: G.miniPlays.runner | 0, best: (G.miniBest.runner | 0) > 0 ? `Best ${G.miniBest.runner} apples kept away` : null },
+    { id: 'keyKeepaway', name: 'The Runner',    plays: G.miniPlays.keyKeepaway | 0, best: (G.miniBest.keyKeepaway | 0) > 0 ? `Best ${G.miniBest.keyKeepaway} apples kept away` : null },
     { id: 'keyStack', name: 'Tetris',        plays: G.miniPlays.keyStack | 0, best: (G.miniBest.keyStack | 0) > 0 ? `Best ${G.miniBest.keyStack} lines` : null },
     { id: 'word',   name: 'Word Practice', plays: G.miniPlays.word   | 0, best: (G.miniBest.word   | 0) > 0 ? `Best ${G.miniBest.word} words` : null },
   ];
