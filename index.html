@@ -2258,7 +2258,8 @@ function keyKeepawayUpdate() {
           r.gameOverAt = t;
           r.caughtApple = o;
           r.caughtAt = t;
-          // V9 §3.6: crunch sound on catch — satisfying, not punitive.
+          // V10 (round 2): paw-thud at catch — reuses the V9 crunch oscillator for now;
+          // future polish: replace with a softer thud sound.
           Audio.crunch();
           spawnParticles(o.x, VH * 0.55 - 16, 18, '#f6a06a');
         }
@@ -2426,7 +2427,9 @@ function keyKeepawayDraw() {
   ctx.fillRect(40, trackTop, VW - 80, 2);
   // Scrolling tick marks for motion sense
   const tickSpacing = 32;
-  const phase = (now() * 240) % tickSpacing;
+  // V10 (round 2): track scroll freezes at catch time — the paw-on-apple stops the conveyor.
+  const scrollClock = r.gameOver ? r.caughtAt : now();
+  const phase = (scrollClock * 240) % tickSpacing;
   ctx.fillStyle = '#28223a';
   for (let x = 40 - phase; x < VW - 40; x += tickSpacing) {
     ctx.fillRect(x, groundY + 2, 12, 2);
@@ -2507,31 +2510,39 @@ function keyKeepawayDraw() {
   }
   ctx.restore();
 
-  // V9 §3.6: fox catches the apple in its mouth on a miss. Replaces V8 X-mark game-over.
+  // V10 (round 2): the fox stops the apple by placing a paw on it. The conveyor stops too.
+  // (The old fox-bites-the-apple animation is replaced; drawFox's mouthOpen param remains
+  //  available for future use but is no longer used at the catch frame.)
   if (r.gameOver) {
     const age = now() - r.caughtAt;
-    // Catch animation: fox snaps forward toward the apple position, then sits still, holding it.
-    const snap = Math.min(1, age / 0.28);
-    const settle = Math.max(0, Math.min(1, (age - 0.5) / 0.8));
-    // Fox shifts forward a touch during the snap
-    const fx = r.charX + 6 * snap;
-    const fy = groundY - 2 * Math.sin(snap * Math.PI);
-    drawFox(fx, fy, r.runFrame, true);
-    // Apple in fox's mouth — sits just in front of snout
+    // Fox stays in its run pose at the position it was running, no forward snap.
+    const fx = r.charX;
+    const fy = groundY;
+    drawFox(fx, fy, r.runFrame);
+    // Apple sits where it was caught, just in front of the fox.
     if (r.caughtApple) {
-      // crunch wobble — small shake decaying after 0.6s
-      const crunchT = Math.max(0, 0.6 - age);
-      const crunchShake = crunchT > 0 ? Math.sin(age * 60) * crunchT * 3 : 0;
-      drawApple(fx + 22, fy - 14 + crunchShake, r.caughtApple.label, 0);
-      // bite-mark crescent on the side facing the fox
+      drawApple(r.caughtApple.x, groundY - 22, r.caughtApple.label, 0);
+      // Paw lands from above onto the apple over ~0.2s, then stays.
+      const pawDrop = Math.min(1, age / 0.20);
+      const pawY = (groundY - 22) - 60 * (1 - pawDrop);   // starts 60px above, lands on apple
+      const pawX = r.caughtApple.x;
       ctx.save();
-      ctx.fillStyle = MG_COLORS.kkGround;
-      ctx.beginPath();
-      ctx.arc(fx + 14, fy - 14, 6, -Math.PI / 2, Math.PI / 2);
-      ctx.fill();
+      ctx.imageSmoothingEnabled = false;
+      // Paw pad — uses the fox's body color so it reads as the fox's paw.
+      ctx.fillStyle = MG_COLORS.kkCharBody;
+      ctx.fillRect(pawX - 10, pawY - 12, 20, 14);
+      // Inner shadow / tone — slightly darker on the pad bottom edge.
+      ctx.fillStyle = '#a07a44';
+      ctx.fillRect(pawX - 10, pawY - 1, 20, 2);
+      // Three toe beans across the top of the pad.
+      ctx.fillStyle = MG_COLORS.kkCharHead;
+      ctx.fillRect(pawX - 8, pawY - 16, 4, 4);
+      ctx.fillRect(pawX - 2, pawY - 17, 4, 4);
+      ctx.fillRect(pawX + 4,  pawY - 16, 4, 4);
       ctx.restore();
     }
-    // Soft dim overlay; come up after the snap for clarity.
+    // Soft dim overlay; come up after the paw lands.
+    const settle = Math.max(0, Math.min(1, (age - 0.5) / 0.8));
     ctx.fillStyle = `rgba(15,15,20,${0.55 * settle})`;
     ctx.fillRect(0, 0, VW, VH);
     if (settle > 0.05) {
@@ -2541,7 +2552,7 @@ function keyKeepawayDraw() {
       ctx.font = '500 44px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('THE FOX GOT THE APPLE!', VW / 2, VH / 2 - 30);
+      ctx.fillText('THE FOX STOPPED THE APPLE!', VW / 2, VH / 2 - 30);
       ctx.fillStyle = C.offWhite;
       ctx.font = '400 22px "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace';
       ctx.fillText(`${r.cleared} apples kept away.`, VW / 2, VH / 2 + 14);
