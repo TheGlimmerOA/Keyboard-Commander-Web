@@ -65,8 +65,12 @@
   .seg { display: inline-block; padding: 0 4px; transition: color 0.12s; }
   .seg.on { color: #dcdcdc; }
   .seg:hover { color: #64c8ff; }
-  #mem-label { transition: color 0.12s; cursor: pointer; }
-  #mem-label:hover { color: #64c8ff; }
+  #mem-label {
+    color: #64c8ff;
+    transition: color 0.12s, text-shadow 0.12s;
+    cursor: pointer;
+  }
+  #mem-label:hover { color: #9be0ff; text-shadow: 0 0 8px rgba(100,200,255,0.4); }
   /* V9 §3.4: live tier strip inside the speed control. */
   #tier-strip {
     display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle;
@@ -205,6 +209,37 @@
     font-size: 13px;
     letter-spacing: 0.06em;
   }
+  /* V10: memory toggle relocated from header to inside Stats popup. */
+  #stats-memory-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    font-family: "SF Mono", "JetBrains Mono", Consolas, Menlo, monospace;
+    font-size: 16px;
+    color: #96a0aa;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .stats-memory-label { color: #96a0aa; }
+  .stats-memory-btn {
+    background: transparent;
+    border: 1px solid #6a7480;
+    border-radius: 6px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+    color: #dcdcdc;
+    font-family: inherit;
+    font-size: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+  }
+  .stats-memory-btn:hover { border-color: #64c8ff; }
+  .stats-memory-btn .seg.on { color: #64c8ff; }
+  .stats-memory-btn .seg:not(.on) { color: #6a7480; }
   /* V8: click-to-focus banner for iframe deployment */
   #focus-banner {
     position: fixed; inset: 0; z-index: 30;
@@ -247,8 +282,8 @@
         <span class="seg on" id="seg-slow">Slow</span><span class="seg" id="seg-fast">Fast</span>
         <span id="tier-strip" aria-label="Current speed tier"></span>
       </div>
-      <div class="toggle" id="memory-toggle" aria-label="Settings and Stats">
-        <span id="mem-label">Settings</span>:&nbsp;<span class="seg on" id="mem-state">ON</span>
+      <div class="toggle" id="memory-toggle" aria-label="Settings">
+        <span id="mem-label">Settings</span>
       </div>
     </div>
   </div>
@@ -260,6 +295,12 @@
       <div id="stats-ladder"></div>
       <div id="stats-mini-label">Games played</div>
       <div id="stats-mini-collection"></div>
+      <div id="stats-memory-row" aria-label="Memory toggle">
+        <span class="stats-memory-label">Memory</span>
+        <button id="stats-memory-toggle" class="stats-memory-btn" type="button" aria-pressed="true">
+          <span class="seg on" id="stats-mem-state">ON</span>
+        </button>
+      </div>
       <div id="stats-close-hint">Click anywhere outside, or press Esc, to close</div>
     </div>
   </div>
@@ -3253,7 +3294,9 @@ function loop() {
 const segSlow = document.getElementById('seg-slow');
 const segFast = document.getElementById('seg-fast');
 const memLabel = document.getElementById('mem-label');
-const memState = document.getElementById('mem-state');
+// V10: memory state element moved into the Stats popup.
+const statsMemoryToggleBtn = document.getElementById('stats-memory-toggle');
+const statsMemState = document.getElementById('stats-mem-state');
 
 // V9 §3.4: build the tier strip cells once, then toggle their .on class to reflect the current tier.
 const tierStrip = document.getElementById('tier-strip');
@@ -3270,8 +3313,10 @@ buildTierStrip();
 function updateToggleVisuals() {
   segSlow.classList.toggle('on', G.slowFast === 'slow');
   segFast.classList.toggle('on', G.slowFast === 'fast');
-  memState.textContent = G.memoryEnabled ? 'ON' : 'OFF';
-  memState.classList.toggle('on', G.memoryEnabled);
+  // V10: memory state now reflected inside the Stats popup row.
+  statsMemState.textContent = G.memoryEnabled ? 'ON' : 'OFF';
+  statsMemState.classList.toggle('on', G.memoryEnabled);
+  statsMemoryToggleBtn.setAttribute('aria-pressed', G.memoryEnabled ? 'true' : 'false');
   // V9 §3.4: refresh tier strip from current row's tier.
   const tier = G.rowTiers[currentSpeedKey()] | 0;
   const cells = tierStrip.children;
@@ -3300,8 +3345,8 @@ segFast.addEventListener('click', (e) => {
   }
 });
 
-// V8 §3.4: ON/OFF segment still toggles memory.
-memState.addEventListener('click', (e) => {
+// V10: memory toggle relocated to Stats popup. Same wipe-on-OFF + persist-on-ON semantics.
+statsMemoryToggleBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   G.memoryEnabled = !G.memoryEnabled;
   if (G.memoryEnabled) {
@@ -3449,6 +3494,8 @@ function openStatsPopup() {
   }
   buildLadder();
   buildMiniCollection();
+  // V10: sync the relocated memory toggle to current state on open.
+  updateToggleVisuals();
   statsPopup.classList.add('show');
   statsPopup.setAttribute('aria-hidden', 'false');
   if (G.statsOpenedAt === 0) G.statsOpenedAt = now();
