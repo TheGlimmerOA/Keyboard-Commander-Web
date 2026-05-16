@@ -2242,8 +2242,8 @@ function keyKeepawayFinish() {
 }
 
 // V8 §3.10: draw a simple pixel-style fox. Deliberately blocky — readable at speed.
-function drawFox(cx, cy, runFrame) {
-  // cy is the foot baseline. Fox is ~30px wide × 22px tall.
+function drawFox(cx, cy, runFrame, mouthOpen = false) {
+  // cy is the foot baseline. Fox is ~30px wide × 22px tall (mouth-closed).
   const px = 4; // "pixel" size for the blocky look
   const body = MG_COLORS.kkCharBody;
   const head = MG_COLORS.kkCharHead;
@@ -2271,6 +2271,19 @@ function drawFox(cx, cy, runFrame) {
   // snout (lighter)
   ctx.fillStyle = white;
   ctx.fillRect(cx + 16, cy - 16, px, px);
+  // V10 §3.8: catch-frame jaw — extend the lower jaw forward + down so the apple visibly sits between teeth.
+  if (mouthOpen) {
+    // Lower jaw extension (level with snout, jutting right)
+    ctx.fillStyle = head;
+    ctx.fillRect(cx + 18, cy - 14, 2 * px, px);
+    // Inner mouth (dark gap between upper and lower jaw)
+    ctx.fillStyle = '#3a2618';
+    ctx.fillRect(cx + 16, cy - 12, 2 * px, px - 1);
+    // Two visible teeth on the upper jaw
+    ctx.fillStyle = '#f0e6d0';
+    ctx.fillRect(cx + 18, cy - 13, 1, 2);
+    ctx.fillRect(cx + 22, cy - 13, 1, 2);
+  }
   // eye
   ctx.fillStyle = dark;
   ctx.fillRect(cx + 12, cy - 20, 2, 2);
@@ -2449,7 +2462,7 @@ function keyKeepawayDraw() {
     // Fox shifts forward a touch during the snap
     const fx = r.charX + 6 * snap;
     const fy = groundY - 2 * Math.sin(snap * Math.PI);
-    drawFox(fx, fy, r.runFrame);
+    drawFox(fx, fy, r.runFrame, true);
     // Apple in fox's mouth — sits just in front of snout
     if (r.caughtApple) {
       // crunch wobble — small shake decaying after 0.6s
